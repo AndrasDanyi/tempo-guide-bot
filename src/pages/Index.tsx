@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ProfileForm from '@/components/ProfileForm';
 import TrainingPlanDisplay from '@/components/TrainingPlanDisplay';
-import { User, LogOut, Target, Calendar } from 'lucide-react';
+import TrainingCalendarView from '@/components/TrainingCalendarView';
+import { User, LogOut, Target, Calendar, FileText } from 'lucide-react';
 
 const Index = () => {
   const { user, signOut, loading } = useAuth();
@@ -233,10 +235,32 @@ const Index = () => {
             </div>
             
             {trainingPlan?.plan_content?.text ? (
-              <TrainingPlanDisplay 
-                trainingPlan={trainingPlan.plan_content.text} 
-                profile={profile}
-              />
+              <Tabs defaultValue="text" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="text" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Text View
+                  </TabsTrigger>
+                  <TabsTrigger value="calendar" className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Calendar View
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="text">
+                  <TrainingPlanDisplay 
+                    trainingPlan={trainingPlan.plan_content.text} 
+                    profile={profile}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="calendar">
+                  <TrainingCalendarView 
+                    trainingPlan={trainingPlan.plan_content.text} 
+                    profile={profile}
+                  />
+                </TabsContent>
+              </Tabs>
             ) : (
               <Card className="max-w-md mx-auto">
                 <CardHeader>

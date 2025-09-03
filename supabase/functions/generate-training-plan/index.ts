@@ -103,10 +103,13 @@ Make sure each week has 7 workouts (Monday through Sunday) and the plan is reali
       body: JSON.stringify({
         model: 'gpt-5-nano-2025-08-07',
         messages: [
-          { role: 'system', content: 'You are an expert running coach who creates detailed, personalized training plans. Always respond with valid JSON.' },
+          { 
+            role: 'system', 
+            content: 'You are an expert running coach who creates detailed, personalized training plans. You MUST respond with valid JSON only. Do not include any text before or after the JSON object. The response must be parseable by JSON.parse().' 
+          },
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 4000,
+        max_completion_tokens: 8000,
       }),
     });
 
@@ -118,13 +121,28 @@ Make sure each week has 7 workouts (Monday through Sunday) and the plan is reali
 
     const data = await response.json();
     console.log('OpenAI response received');
+    
+    const aiResponseContent = data.choices[0].message.content;
+    console.log('AI Response Length:', aiResponseContent.length);
+    console.log('AI Response Preview:', aiResponseContent.substring(0, 500));
 
     let trainingPlan;
     try {
-      trainingPlan = JSON.parse(data.choices[0].message.content);
+      // Clean the response - remove any potential markdown code block markers
+      let cleanedContent = aiResponseContent.trim();
+      if (cleanedContent.startsWith('```json')) {
+        cleanedContent = cleanedContent.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+      }
+      if (cleanedContent.startsWith('```')) {
+        cleanedContent = cleanedContent.replace(/^```\n?/, '').replace(/\n?```$/, '');
+      }
+      
+      trainingPlan = JSON.parse(cleanedContent);
+      console.log('Training plan parsed successfully');
     } catch (parseError) {
       console.error('JSON parsing error:', parseError);
-      throw new Error('Failed to parse training plan from AI response');
+      console.error('Raw AI response:', aiResponseContent);
+      throw new Error(`Failed to parse training plan from AI response. Response length: ${aiResponseContent.length}`);
     }
 
     // Save the training plan to the database

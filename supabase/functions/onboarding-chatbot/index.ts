@@ -29,7 +29,9 @@ serve(async (req) => {
 
     const { message, conversationHistory, profileData } = await req.json();
 
-    const systemPrompt = `You are a friendly AI running coach assistant helping runners create their personalized training plan. Your job is to collect their profile information through a natural conversation.
+const systemPrompt = `You are a friendly AI running coach assistant helping runners create their personalized training plan. Your job is to collect their profile information through a natural conversation.
+
+CRITICAL: You MUST ALWAYS respond with VALID JSON. Never respond with plain text or incomplete JSON.
 
 REQUIRED FIELDS TO COLLECT:
 1. full_name (string) - Their full name
@@ -60,6 +62,14 @@ OPTIONAL FIELDS TO COLLECT:
 
 CURRENT PROFILE DATA: ${JSON.stringify(profileData)}
 
+NATURAL LANGUAGE PARSING RULES:
+- Convert relative dates to YYYY-MM-DD format (e.g., "Sept 26th" = "2025-09-26", "March 15" = "2025-03-15")
+- Extract distances from natural text (e.g., "200+ km" = 200, "half marathon" = 21, "marathon" = 42)
+- Parse heights with units (e.g., "182 cm" = 182, "6 feet" = 183)
+- Extract paces from text (e.g., "under 4 minutes per km" = "4:00")
+- Convert race types to distances (e.g., "5K" = 5, "10K" = 10, "half marathon" = 21, "marathon" = 42, "ultra" = 50+)
+- Make intelligent assumptions about missing context (current year, metric units, etc.)
+
 CONVERSATION RULES:
 1. Be conversational, friendly, and encouraging
 2. Ask questions naturally, don't make it feel like a form
@@ -69,20 +79,20 @@ CONVERSATION RULES:
 6. If they seem unsure about optional fields, reassure them it's okay to skip
 7. When you have enough information for a basic plan (required fields + some optional), mention they can generate their plan
 
-RESPONSE FORMAT:
-Always respond with a JSON object containing:
+RESPONSE FORMAT - YOU MUST ALWAYS RESPOND WITH THIS EXACT JSON STRUCTURE:
 {
   "message": "Your conversational response to the user",
   "extracted_data": {
     // Only include fields you've confidently extracted from the conversation
     // Use the exact field names listed above
+    // Convert natural language to proper formats
   },
   "missing_required": ["field1", "field2"], // List any required fields still missing
   "confidence": 0.8, // Your confidence in the extracted data (0-1)
   "ready_for_plan": false // Set to true when you have required fields + reasonable optional data
 }
 
-Be natural and don't overwhelm them with too many questions at once. Extract information as the conversation flows.`;
+CRITICAL: Never respond with anything other than valid JSON. If you're uncertain about parsing something, make your best educated guess and note lower confidence.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -99,9 +109,10 @@ Be natural and don't overwhelm them with too many questions at once. Extract inf
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-nano-2025-08-07',
+        model: 'gpt-5-2025-08-07',
         messages: messages,
         max_completion_tokens: 1000,
+        temperature: 0.7,
       }),
     });
 
@@ -119,15 +130,35 @@ Be natural and don't overwhelm them with too many questions at once. Extract inf
     let parsedResponse;
     try {
       // Try to parse the JSON response
+      if (!assistantMessage || assistantMessage.trim().length === 0) {
+        throw new Error('Empty response from AI');
+      }
       parsedResponse = JSON.parse(assistantMessage);
     } catch (e) {
-      // Fallback if response isn't valid JSON
+      // Enhanced fallback with better error handling
       console.warn('Failed to parse AI response as JSON:', e);
+      console.log('Raw AI response was:', assistantMessage);
+      
+      // Try to extract any useful information from the raw response
+      const extractedInfo: any = {};
+      const currentMissing = ["full_name", "goal", "race_date", "age", "height"];
+      
+      // Check current profile data to see what we already have
+      if (profileData) {
+        Object.keys(profileData).forEach(key => {
+          if (profileData[key] !== null && profileData[key] !== undefined && profileData[key] !== '') {
+            if (currentMissing.includes(key)) {
+              currentMissing.splice(currentMissing.indexOf(key), 1);
+            }
+          }
+        });
+      }
+      
       parsedResponse = {
-        message: assistantMessage,
-        extracted_data: {},
-        missing_required: ["full_name", "goal", "race_date", "age", "height"],
-        confidence: 0.5,
+        message: assistantMessage || "I apologize, I'm having trouble processing that. Could you please rephrase your response?",
+        extracted_data: extractedInfo,
+        missing_required: currentMissing,
+        confidence: 0.3,
         ready_for_plan: false
       };
     }

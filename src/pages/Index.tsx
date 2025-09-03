@@ -298,6 +298,7 @@ const Index = () => {
                   <TrainingCalendarView 
                     trainingPlan={trainingPlan.plan_content.text} 
                     profile={profile}
+                    planStartDate={trainingPlan.created_at}
                   />
                 </TabsContent>
               </Tabs>

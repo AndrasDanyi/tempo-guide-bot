@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, Target } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, isValid, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
 
 interface WorkoutDay {
   date: Date;
@@ -18,41 +18,30 @@ interface WorkoutDay {
 interface TrainingCalendarViewProps {
   trainingPlan: string;
   profile: any;
+  planStartDate: string;
 }
 
-const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewProps) => {
+const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: TrainingCalendarViewProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<WorkoutDay | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  console.log('=== TrainingCalendarView Debug ===');
-  console.log('trainingPlan received:', typeof trainingPlan, trainingPlan?.length);
-  console.log('profile received:', profile);
-  
-  // Let's check if the training plan is truncated
-  if (trainingPlan && typeof trainingPlan === 'string') {
-    console.log('Training plan first 200 chars:', trainingPlan.substring(0, 200));
-    console.log('Training plan last 200 chars:', trainingPlan.substring(trainingPlan.length - 200));
-    console.log('Contains "date:" entries:', trainingPlan.includes('date:'));
-    console.log('Date entries found:', (trainingPlan.match(/date:/g) || []).length);
-  }
-
-  // Parse training plan to extract daily workouts
+  // Parse training plan to extract daily workouts using sequential day mapping
   const workoutDays = useMemo(() => {
-    if (!trainingPlan || typeof trainingPlan !== 'string') {
-      console.log('Training plan is invalid:', typeof trainingPlan, trainingPlan?.length);
+    if (!trainingPlan || typeof trainingPlan !== 'string' || !profile?.race_date) {
+      console.log('Missing training plan or race date');
       return [];
     }
-    
-    console.log('Parsing training plan, length:', trainingPlan.length);
-    console.log('First 500 characters:', trainingPlan.substring(0, 500));
     
     const days: WorkoutDay[] = [];
     const lines = trainingPlan.split('\n');
     
-    console.log('Total lines to process:', lines.length);
+    // Find the plan creation/start date from database
+    const planStartDate_date = new Date(planStartDate);
+    const raceDate = new Date(profile.race_date);
     
-    let currentDay: Partial<WorkoutDay> = {};
+    let currentSessionDay = 0;
+    let currentSession: Partial<WorkoutDay> = {};
     let collectingDescription = false;
     let description = '';
     
@@ -64,50 +53,51 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
         continue;
       }
       
-      // Look for date entries (new format)
+      // Look for date entries (but we'll ignore the actual date and use sequential mapping)
       if (line.startsWith('date: ')) {
-        // Save previous day if it exists
-        if (currentDay.date && currentDay.workout) {
+        // Save previous session if it exists
+        if (currentSession.workout && currentSessionDay > 0) {
           if (collectingDescription) {
-            currentDay.description = description.trim();
+            currentSession.description = description.trim();
           }
-          days.push(currentDay as WorkoutDay);
+          
+          // Calculate the actual calendar date for this session
+          const sessionDate = new Date(planStartDate_date);
+          sessionDate.setDate(sessionDate.getDate() + (currentSessionDay - 1));
+          
+          currentSession.date = sessionDate;
+          days.push(currentSession as WorkoutDay);
         }
         
-        // Start new day
-        currentDay = {};
+        // Start new session
+        currentSessionDay++;
+        currentSession = {};
         collectingDescription = false;
         description = '';
-        
-        const dateStr = line.replace('date: ', '').trim();
-        const date = parseISO(dateStr);
-        if (isValid(date)) {
-          currentDay.date = date;
-        }
         continue;
       }
       
       // Look for training session (workout type)
       if (line.startsWith('training_session: ')) {
-        currentDay.workout = line.replace('training_session: ', '').trim();
+        currentSession.workout = line.replace('training_session: ', '').trim();
         continue;
       }
       
       // Look for estimated distance
       if (line.startsWith('estimated_distance_km: ')) {
         const distance = line.replace('estimated_distance_km: ', '').trim();
-        currentDay.distance = distance + ' km';
+        currentSession.distance = distance + ' km';
         continue;
       }
       
       // Look for estimated moving time (duration)
       if (line.startsWith('estimated_moving_time: ')) {
-        currentDay.duration = line.replace('estimated_moving_time: ', '').trim();
+        currentSession.duration = line.replace('estimated_moving_time: ', '').trim();
         continue;
       }
       
       // Collect all other fields for description
-      if (currentDay.date && currentDay.workout && 
+      if (currentSession.workout && 
           !line.startsWith('date: ') && 
           !line.startsWith('training_session: ') &&
           !line.startsWith('estimated_distance_km: ') &&
@@ -126,18 +116,26 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
       }
     }
     
-    // Don't forget the last day
-    if (currentDay.date && currentDay.workout) {
+    // Don't forget the last session
+    if (currentSession.workout && currentSessionDay > 0) {
       if (collectingDescription) {
-        currentDay.description = description.trim();
+        currentSession.description = description.trim();
       }
-      days.push(currentDay as WorkoutDay);
+      
+      const sessionDate = new Date(planStartDate_date);
+      sessionDate.setDate(sessionDate.getDate() + (currentSessionDay - 1));
+      
+      currentSession.date = sessionDate;
+      days.push(currentSession as WorkoutDay);
     }
     
-    console.log('Parsed workout days:', days.length);
-    console.log('Sample parsed day:', days[0]);
+    console.log('Parsed workout sessions:', days.length);
+    console.log('Plan start date:', planStartDate_date.toDateString());
+    console.log('Race date:', raceDate.toDateString());
+    console.log('Sample session:', days[0]);
+    
     return days;
-  }, [trainingPlan]);
+  }, [trainingPlan, profile?.race_date, planStartDate]);
 
   // Get days for current month view
   const monthStart = startOfMonth(currentMonth);

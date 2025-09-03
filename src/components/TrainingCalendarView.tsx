@@ -215,6 +215,7 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
             {calendarDays.map(day => {
               const workout = getWorkoutForDay(day);
               const isToday = isSameDay(day, new Date());
+              const isRaceDay = profile?.race_date && isSameDay(day, new Date(profile.race_date));
               
               return (
                 <div
@@ -222,13 +223,26 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
                   className={`
                     relative p-2 h-20 border rounded-lg cursor-pointer transition-colors
                     ${isToday ? 'border-primary bg-primary/5' : 'border-border'}
+                    ${isRaceDay ? 'border-red-500 bg-red-50 border-2' : ''}
                     ${workout ? 'hover:bg-accent' : 'hover:bg-muted/50'}
                   `}
                   onClick={() => workout && handleDayClick(workout)}
                 >
                   <div className="text-sm font-medium mb-1">
                     {format(day, 'd')}
+                    {isRaceDay && <span className="text-red-600 ml-1">🏁</span>}
                   </div>
+                  
+                  {isRaceDay && !workout && (
+                    <div className="space-y-1">
+                      <Badge 
+                        variant="secondary" 
+                        className="text-xs p-1 h-auto leading-tight bg-red-100 text-red-800 border-red-200"
+                      >
+                        Race Day!
+                      </Badge>
+                    </div>
+                  )}
                   
                   {workout && (
                     <div className="space-y-1">

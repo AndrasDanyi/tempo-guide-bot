@@ -10,7 +10,8 @@ import ProfileForm from '@/components/ProfileForm';
 import TrainingPlanDisplay from '@/components/TrainingPlanDisplay';
 import TrainingCalendarView from '@/components/TrainingCalendarView';
 import OnboardingChatbot from '@/components/OnboardingChatbot';
-import { User, LogOut, Target, Calendar, FileText, MessageCircle, ClipboardList } from 'lucide-react';
+import EditProfileDialog from '@/components/EditProfileDialog';
+import { User, LogOut, Target, Calendar, FileText, MessageCircle, ClipboardList, Edit3 } from 'lucide-react';
 
 const Index = () => {
   const { user, signOut, loading } = useAuth();
@@ -20,6 +21,7 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [onboardingMode, setOnboardingMode] = useState<'chat' | 'form'>('chat');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -103,6 +105,11 @@ const Index = () => {
   const handleProfileCreated = async (newProfile: any) => {
     setProfile(newProfile);
     await generateTrainingPlan(newProfile);
+  };
+
+  const handleProfileUpdated = async (updatedProfile: any) => {
+    setProfile(updatedProfile);
+    await generateTrainingPlan(updatedProfile);
   };
 
   const handleSignOut = async () => {
@@ -230,13 +237,21 @@ const Index = () => {
               <p className="text-muted-foreground">
                 Goal: {profile.goal} • Race Date: {new Date(profile.race_date).toLocaleDateString()}
               </p>
-              <div className="mt-4">
+              <div className="mt-4 flex gap-2">
                 <Button 
                   onClick={() => generateTrainingPlan(profile)} 
                   variant="outline"
                   size="sm"
                 >
                   Regenerate Training Plan
+                </Button>
+                <Button 
+                  onClick={() => setIsEditDialogOpen(true)} 
+                  variant="outline"
+                  size="sm"
+                >
+                  <Edit3 className="h-4 w-4 mr-2" />
+                  Edit Profile
                 </Button>
               </div>
             </div>
@@ -301,6 +316,14 @@ const Index = () => {
           </div>
         )}
       </main>
+
+      {/* Edit Profile Dialog */}
+      <EditProfileDialog 
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        profile={profile}
+        onProfileUpdated={handleProfileUpdated}
+      />
     </div>
   );
 };

@@ -18,22 +18,13 @@ export type Database = {
         Row: {
           age: number | null
           created_at: string
-          current_weekly_mileage: number | null
-          days_per_week: number | null
-          elevation_context: string | null
           email: string | null
           full_name: string | null
-          gender: string | null
           goal: string
-          goal_pace_per_km: string | null
           height: number | null
           id: string
           injuries: string | null
-          longest_run_km: number | null
           race_date: string
-          race_distance_km: number | null
-          race_name: string | null
-          strength_notes: string | null
           training_history: string | null
           updated_at: string
           user_id: string
@@ -41,22 +32,13 @@ export type Database = {
         Insert: {
           age?: number | null
           created_at?: string
-          current_weekly_mileage?: number | null
-          days_per_week?: number | null
-          elevation_context?: string | null
           email?: string | null
           full_name?: string | null
-          gender?: string | null
           goal: string
-          goal_pace_per_km?: string | null
           height?: number | null
           id?: string
           injuries?: string | null
-          longest_run_km?: number | null
           race_date: string
-          race_distance_km?: number | null
-          race_name?: string | null
-          strength_notes?: string | null
           training_history?: string | null
           updated_at?: string
           user_id: string
@@ -64,22 +46,13 @@ export type Database = {
         Update: {
           age?: number | null
           created_at?: string
-          current_weekly_mileage?: number | null
-          days_per_week?: number | null
-          elevation_context?: string | null
           email?: string | null
           full_name?: string | null
-          gender?: string | null
           goal?: string
-          goal_pace_per_km?: string | null
           height?: number | null
           id?: string
           injuries?: string | null
-          longest_run_km?: number | null
           race_date?: string
-          race_distance_km?: number | null
-          race_name?: string | null
-          strength_notes?: string | null
           training_history?: string | null
           updated_at?: string
           user_id?: string

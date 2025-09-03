@@ -11,72 +11,6 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
-// Function to parse text format into JSON structure
-function parseTextToJson(textPlan: string) {
-  const lines = textPlan.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-  const days = [];
-  let currentDay: any = {};
-
-  for (const line of lines) {
-    if (line.startsWith('DATE:')) {
-      // If we have a current day, save it
-      if (currentDay.date) {
-        days.push(currentDay);
-      }
-      // Start new day
-      currentDay = {
-        date: line.replace('DATE:', '').trim(),
-        training_session: '',
-        mileage_breakdown: '',
-        pace_targets: '',
-        heart_rate_zones: '',
-        purpose: '',
-        session_load: 'Medium',
-        notes: '',
-        what_to_eat_drink: '',
-        additional_training: '',
-        recovery_training: '',
-        estimated_distance_km: 0,
-        estimated_avg_pace_min_per_km: '0:00',
-        estimated_moving_time: '0:00',
-        estimated_elevation_gain_m: 0,
-        estimated_avg_power_w: 0,
-        estimated_cadence_spm: 0,
-        estimated_calories: 0,
-        daily_nutrition_advice: ''
-      };
-    } else if (line.startsWith('SESSION:')) {
-      currentDay.training_session = line.replace('SESSION:', '').trim();
-      if (currentDay.training_session.toLowerCase().includes('rest')) {
-        currentDay.session_load = 'Rest';
-      }
-    } else if (line.startsWith('DISTANCE:')) {
-      const distance = line.replace('DISTANCE:', '').trim();
-      if (distance.toLowerCase() !== 'rest' && distance !== 'N/A') {
-        const distanceNum = parseFloat(distance.replace('km', '').trim());
-        if (!isNaN(distanceNum)) {
-          currentDay.estimated_distance_km = distanceNum;
-          currentDay.estimated_calories = Math.round(distanceNum * 70); // Rough estimate
-        }
-      }
-      currentDay.mileage_breakdown = distance;
-    } else if (line.startsWith('PACE:')) {
-      currentDay.pace_targets = line.replace('PACE:', '').trim();
-      currentDay.estimated_avg_pace_min_per_km = currentDay.pace_targets;
-    } else if (line.startsWith('NOTES:')) {
-      currentDay.notes = line.replace('NOTES:', '').trim();
-      currentDay.purpose = currentDay.notes;
-    }
-  }
-
-  // Don't forget the last day
-  if (currentDay.date) {
-    days.push(currentDay);
-  }
-
-  return days;
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -109,47 +43,53 @@ serve(async (req) => {
     const raceDate = new Date(profileData.race_date);
     const daysDifference = Math.ceil((raceDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
-    const prompt = `You are an expert running coach who creates detailed training plans for runners of all levels — 
-from beginners doing Couch-to-5K to athletes training for ultramarathons and multi-day events.
+    const prompt = `You are an expert running coach. Create a detailed personalized training plan for a runner with the following information:
 
-Your job is to create a day-by-day plan that prepares the athlete for their specific goal — 
-or builds a safe and progressive running base if they do not have a specific race.
+Goal: ${profileData.goal}
+Race Date: ${profileData.race_date} (${daysDifference} days from today)
+Age: ${profileData.age}
+Height: ${profileData.height} cm
+Training History: ${profileData.training_history || 'No specific history provided'}
+Injuries: ${profileData.injuries || 'None reported'}
 
-### INPUT DATA
-- Runner Profile:
-  - Name: ${profileData.full_name || 'Runner'}
-  - Age: ${profileData.age}
-  - Gender: ${profileData.gender || 'Not specified'}
-  - Running history: ${profileData.training_history || 'No specific history provided'}
-  - Current weekly mileage: ${profileData.current_weekly_mileage || 'Not specified'} km
-  - Longest comfortable run: ${profileData.longest_run_km || 'Not specified'} km
-  - Target event: ${profileData.race_name || profileData.goal}
-  - Target distance: ${profileData.race_distance_km || 'Not specified'} km
-  - Target date: ${profileData.race_date} (${daysDifference} days from today)
-  - Target pace: ${profileData.goal_pace_per_km || 'Not specified'} per km
-  - Past injuries or limitations: ${profileData.injuries || 'None reported'}
-  - Strength training habits: ${profileData.strength_notes || 'Not specified'}
-  - Typical terrain & elevation gain: ${profileData.elevation_context || 'flat'}
+Create a day-by-day training plan from today (${today.toISOString().split('T')[0]}) until race day (${profileData.race_date}).
 
-### REQUIREMENTS
-- Plan duration: From ${today.toISOString().split('T')[0]} until ${profileData.race_date}.
-- Sessions per week: ${profileData.days_per_week || 5}.
-- Build progressive overload safely, peak 2–3 weeks before race if training for an event, 
-  and taper appropriately.
-- For beginners, start with run/walk intervals and build gradually.
-- Avoid sudden mileage spikes, respect injury history.
+CRITICAL: Format your response with EXACT daily entries as follows:
 
-### OUTPUT FORMAT
-Create a detailed day-by-day training plan in simple text format. For each day, use this structure:
+TRAINING PLAN OVERVIEW
+[Brief overview of training philosophy and approach]
 
-DATE: YYYY-MM-DD
-SESSION: [Name of session, e.g. 'Tempo Run', 'Long Run', 'Rest Day']
-DISTANCE: [Distance in km or 'Rest' for rest days]
-PACE: [Target pace or 'N/A' for rest days]
-NOTES: [Brief notes about the session purpose and any tips]
+DAILY SCHEDULE
 
-Continue this format for every single day from start date to race date. Include rest days.
-Be consistent with the format - use exactly "DATE:", "SESSION:", "DISTANCE:", "PACE:", "NOTES:" labels.`;
+Day 1
+Date: ${today.toISOString().split('T')[0]}
+Day of week: ${today.toLocaleDateString('en-US', { weekday: 'long' })}
+Workout type: [Rest/Easy Run/Tempo Run/Long Run/Intervals/etc.]
+Distance: [X km or 0 km for rest days]
+Duration: [X min]
+Detailed description: [Specific workout details, pacing guidelines, and instructions]
+
+Day 2
+Date: ${new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+Day of week: ${new Date(today.getTime() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long' })}
+Workout type: [workout type]
+Distance: [X km]
+Duration: [X min]
+Detailed description: [workout details]
+
+Continue this exact format for every single day from Day 1 (today) through Day ${daysDifference} (race day).
+
+IMPORTANT: 
+- Use EXACTLY this format for every day
+- Include ALL ${daysDifference} days
+- Start with Day 1 = today (${today.toISOString().split('T')[0]})
+- End with Day ${daysDifference} = race day (${profileData.race_date})
+- Include specific distances in km
+- Include specific durations in minutes
+- Provide detailed pacing and instruction for each workout
+
+ADDITIONAL GUIDANCE
+[Include injury prevention tips, nutrition advice, and tapering strategy]`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -162,11 +102,11 @@ Be consistent with the format - use exactly "DATE:", "SESSION:", "DISTANCE:", "P
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert running coach. Follow the exact text format requested. Be consistent with the labels and structure.' 
+            content: 'You are an expert running coach who creates detailed, personalized training plans. Provide comprehensive text-based training plans that runners can easily follow.' 
           },
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 200000,
+        max_completion_tokens: 100000,
       }),
     });
 
@@ -178,6 +118,7 @@ Be consistent with the format - use exactly "DATE:", "SESSION:", "DISTANCE:", "P
 
     const data = await response.json();
     console.log('OpenAI response received');
+    console.log('Full OpenAI response:', JSON.stringify(data, null, 2));
     
     // Log token usage
     if (data.usage) {
@@ -189,21 +130,28 @@ Be consistent with the format - use exactly "DATE:", "SESSION:", "DISTANCE:", "P
     const trainingPlanText = data.choices[0].message.content;
     console.log('Training plan generated successfully');
     console.log('Plan length:', trainingPlanText?.length || 0);
+    console.log('Plan exists:', !!trainingPlanText);
     
+    if (trainingPlanText) {
+      console.log('Plan preview (first 500 chars):', trainingPlanText.substring(0, 500));
+      console.log('Plan preview (last 200 chars):', trainingPlanText.slice(-200));
+    } else {
+      console.log('ERROR: No training plan text generated!');
+      console.log('Response choices:', data.choices);
+    }
+
+    // Validate that we have content before saving
     if (!trainingPlanText || trainingPlanText.trim().length === 0) {
       throw new Error('OpenAI returned empty training plan content');
     }
 
-    // Parse the text format into JSON structure
-    const parsedPlan = parseTextToJson(trainingPlanText);
-    console.log('Successfully parsed text plan into JSON with', parsedPlan.length, 'days');
-
+    // Save the training plan to the database as text
     const { data: savedPlan, error: saveError } = await supabase
       .from('training_plans')
       .insert({
         user_id: user.id,
         profile_id: profileData.id,
-        plan_content: { json: parsedPlan, text: trainingPlanText }, // Store both JSON and text
+        plan_content: { text: trainingPlanText }, // Store as simple object with text property
         start_date: today.toISOString().split('T')[0],
         end_date: profileData.race_date,
       })

@@ -31,17 +31,12 @@ const Index = () => {
     if (!user) return;
 
     try {
-      // Fetch user profile - handle case where no profile exists
-      const { data: profileData, error: profileError } = await supabase
+      // Fetch user profile
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        console.error('Error fetching profile:', profileError);
-        return;
-      }
+        .single();
 
       if (profileData) {
         setProfile(profileData);
@@ -53,14 +48,15 @@ const Index = () => {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .maybeSingle();
+          .single();
 
         if (planData) {
           setTrainingPlan(planData);
         }
       }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      // Profile or plan doesn't exist yet - this is fine for new users
+      console.log('No profile or training plan found yet');
     } finally {
       setLoadingData(false);
     }
@@ -258,12 +254,12 @@ const Index = () => {
                   />
                 </TabsContent>
                 
-                 <TabsContent value="calendar">
-                   <TrainingCalendarView 
-                     planContent={trainingPlan.plan_content} 
-                     profile={profile}
-                   />
-                 </TabsContent>
+                <TabsContent value="calendar">
+                  <TrainingCalendarView 
+                    trainingPlan={trainingPlan.plan_content.text} 
+                    profile={profile}
+                  />
+                </TabsContent>
               </Tabs>
             ) : (
               <Card className="max-w-md mx-auto">

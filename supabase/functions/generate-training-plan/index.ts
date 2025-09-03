@@ -43,53 +43,76 @@ serve(async (req) => {
     const raceDate = new Date(profileData.race_date);
     const daysDifference = Math.ceil((raceDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
-    const prompt = `You are an expert running coach. Create a detailed personalized training plan for a runner with the following information:
+    const prompt = `You are an expert running coach who creates detailed training plans for runners of all levels — 
+from beginners doing Couch-to-5K to athletes training for ultramarathons and multi-day events.
 
-Goal: ${profileData.goal}
-Race Date: ${profileData.race_date} (${daysDifference} days from today)
-Age: ${profileData.age}
-Height: ${profileData.height} cm
-Training History: ${profileData.training_history || 'No specific history provided'}
-Injuries: ${profileData.injuries || 'None reported'}
+Your job is to create a day-by-day plan that prepares the athlete for their specific goal — 
+or builds a safe and progressive running base if they do not have a specific race.
 
-Create a day-by-day training plan from today (${today.toISOString().split('T')[0]}) until race day (${profileData.race_date}).
+### INPUT DATA
+- Runner Profile:
+  - Name: ${profileData.full_name || 'Runner'}
+  - Age: ${profileData.age}
+  - Gender: ${profileData.gender || 'Not specified'}
+  - Running history: ${profileData.training_history || 'No specific history provided'}
+  - Current weekly mileage: ${profileData.current_weekly_mileage || 'Not specified'} km
+  - Longest comfortable run: ${profileData.longest_run_km || 'Not specified'} km
+  - Target event: ${profileData.race_name || profileData.goal}
+  - Target distance: ${profileData.race_distance_km || 'Not specified'} km
+  - Target date: ${profileData.race_date} (${daysDifference} days from today)
+  - Target pace: ${profileData.goal_pace_per_km || 'Not specified'} per km
+  - Past injuries or limitations: ${profileData.injuries || 'None reported'}
+  - Strength training habits: ${profileData.strength_notes || 'Not specified'}
+  - Typical terrain & elevation gain: ${profileData.elevation_context || 'flat'}
 
-CRITICAL: Format your response with EXACT daily entries as follows:
+### REQUIREMENTS
+- Plan duration: From ${today.toISOString().split('T')[0]} until ${profileData.race_date}.
+- Sessions per week: ${profileData.days_per_week || 5}.
+- Include:
+  - Specific daily run type (easy, tempo, intervals, long run, rest)
+  - Distance OR duration target (whichever is most appropriate for user level)
+  - Pace or HR zone target
+  - Purpose of the session (why we do it)
+  - Session load (Rest/Low/Medium/High)
+  - Notes for the runner (form cues, breathing, pacing tips)
+  - Nutrition & fueling notes for key sessions
+  - Recovery suggestions (foam rolling, yoga, mobility)
+  - Strength/mobility add-ons (if relevant)
+- Build progressive overload safely, peak 2–3 weeks before race if training for an event, 
+  and taper appropriately.
+- For beginners, start with run/walk intervals and build gradually.
+- Avoid sudden mileage spikes, respect injury history.
 
-TRAINING PLAN OVERVIEW
-[Brief overview of training philosophy and approach]
+### OUTPUT FORMAT
+Return a **JSON array** with one object per day from start date to race date (or plan end), including rest days.
 
-DAILY SCHEDULE
+Use this exact structure, filling in realistic values based on the runner's profile (examples are just for format illustration — do not output them literally):
 
-Day 1
-Date: ${today.toISOString().split('T')[0]}
-Day of week: ${today.toLocaleDateString('en-US', { weekday: 'long' })}
-Workout type: [Rest/Easy Run/Tempo Run/Long Run/Intervals/etc.]
-Distance: [X km or 0 km for rest days]
-Duration: [X min]
-Detailed description: [Specific workout details, pacing guidelines, and instructions]
+[
+  {
+    "date": "YYYY-MM-DD", 
+    "training_session": "Name of session, e.g. 'Tempo Run' or 'Long Run'",
+    "mileage_breakdown": "Structured breakdown of the session (warm-up, intervals/steady run, cooldown, etc.)",
+    "pace_targets": "Pace or HR zone targets for each part of the run",
+    "heart_rate_zones": "Which HR zones apply to the session (Z1-Z5)",
+    "purpose": "Why this session is included (e.g. aerobic endurance, threshold, recovery)",
+    "session_load": "Rest/Low/Medium/High",
+    "notes": "Form tips, breathing focus, drills if needed",
+    "what_to_eat_drink": "Guidance on pre/during fueling and hydration for this session",
+    "additional_training": "Strength/mobility add-ons or leave empty if none",
+    "recovery_training": "Post-run recovery suggestions (foam rolling, mobility, etc.)",
+    "estimated_distance_km": 0,
+    "estimated_avg_pace_min_per_km": "0:00",
+    "estimated_moving_time": "0:00",
+    "estimated_elevation_gain_m": 0,
+    "estimated_avg_power_w": 0,
+    "estimated_cadence_spm": 0,
+    "estimated_calories": 0,
+    "daily_nutrition_advice": "Total calorie target and example meal/snack suggestions"
+  }
+]
 
-Day 2
-Date: ${new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-Day of week: ${new Date(today.getTime() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long' })}
-Workout type: [workout type]
-Distance: [X km]
-Duration: [X min]
-Detailed description: [workout details]
-
-Continue this exact format for every single day from Day 1 (today) through Day ${daysDifference} (race day).
-
-IMPORTANT: 
-- Use EXACTLY this format for every day
-- Include ALL ${daysDifference} days
-- Start with Day 1 = today (${today.toISOString().split('T')[0]})
-- End with Day ${daysDifference} = race day (${profileData.race_date})
-- Include specific distances in km
-- Include specific durations in minutes
-- Provide detailed pacing and instruction for each workout
-
-ADDITIONAL GUIDANCE
-[Include injury prevention tips, nutrition advice, and tapering strategy]`;
+Return **valid JSON only**, with no extra text, markdown, or explanations.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -145,13 +168,22 @@ ADDITIONAL GUIDANCE
       throw new Error('OpenAI returned empty training plan content');
     }
 
-    // Save the training plan to the database as text
+    // Parse JSON and save the training plan to the database
+    let parsedPlan;
+    try {
+      parsedPlan = JSON.parse(trainingPlanText);
+      console.log('Successfully parsed JSON plan with', parsedPlan.length, 'days');
+    } catch (parseError) {
+      console.error('Failed to parse JSON plan:', parseError);
+      throw new Error('OpenAI returned invalid JSON format');
+    }
+
     const { data: savedPlan, error: saveError } = await supabase
       .from('training_plans')
       .insert({
         user_id: user.id,
         profile_id: profileData.id,
-        plan_content: { text: trainingPlanText }, // Store as simple object with text property
+        plan_content: { json: parsedPlan, text: trainingPlanText }, // Store both JSON and text
         start_date: today.toISOString().split('T')[0],
         end_date: profileData.race_date,
       })

@@ -254,12 +254,12 @@ const Index = () => {
                   />
                 </TabsContent>
                 
-                <TabsContent value="calendar">
-                  <TrainingCalendarView 
-                    trainingPlan={trainingPlan.plan_content.text} 
-                    profile={profile}
-                  />
-                </TabsContent>
+                 <TabsContent value="calendar">
+                   <TrainingCalendarView 
+                     planContent={trainingPlan.plan_content} 
+                     profile={profile}
+                   />
+                 </TabsContent>
               </Tabs>
             ) : (
               <Card className="max-w-md mx-auto">

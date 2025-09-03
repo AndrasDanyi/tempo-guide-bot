@@ -79,7 +79,7 @@ Generate all ${daysDifference} days now:`;
         messages: [
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 2000,
+        max_completion_tokens: 200000,
       }),
     });
 

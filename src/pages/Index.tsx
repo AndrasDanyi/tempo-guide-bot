@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ProfileForm from '@/components/ProfileForm';
-import TrainingCalendar from '@/components/TrainingCalendar';
+import TrainingPlanDisplay from '@/components/TrainingPlanDisplay';
 import { User, LogOut, Target, Calendar } from 'lucide-react';
 
 const Index = () => {
@@ -75,7 +75,7 @@ const Index = () => {
       if (data.success) {
         setTrainingPlan({
           id: data.planId,
-          plan_content: data.trainingPlan,
+          plan_content: { text: data.trainingPlanText },
         });
         toast({
           title: "Training plan generated!",
@@ -206,7 +206,10 @@ const Index = () => {
                 Goal: {profile.goal} • Race Date: {new Date(profile.race_date).toLocaleDateString()}
               </p>
             </div>
-            <TrainingCalendar trainingPlan={trainingPlan.plan_content} />
+            <TrainingPlanDisplay 
+              trainingPlan={trainingPlan.plan_content.text} 
+              profile={profile}
+            />
           </div>
         )}
       </main>

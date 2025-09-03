@@ -52,47 +52,17 @@ Height: ${profileData.height} cm
 Training History: ${profileData.training_history || 'No specific history provided'}
 Injuries: ${profileData.injuries || 'None reported'}
 
-Create a structured training plan from today (${today.toISOString().split('T')[0]}) until race day that includes:
-1. Weekly training structure with specific workouts
-2. Progressive mileage buildup
-3. Different types of runs (easy, tempo, intervals, long runs)
-4. Rest days and recovery periods
-5. Taper period before the race
+Create a structured training plan from today (${today.toISOString().split('T')[0]}) until race day. 
 
-Return the response as a JSON object with this structure:
-{
-  "summary": "Brief overview of the training philosophy and approach",
-  "weeklyStructure": "General weekly training structure",
-  "weeks": [
-    {
-      "weekNumber": 1,
-      "startDate": "YYYY-MM-DD",
-      "endDate": "YYYY-MM-DD",
-      "focus": "Week focus/goal",
-      "totalMiles": 25,
-      "workouts": [
-        {
-          "day": "Monday",
-          "date": "YYYY-MM-DD",
-          "workout": "Rest day",
-          "distance": 0,
-          "duration": "0 min",
-          "description": "Complete rest or light stretching"
-        },
-        {
-          "day": "Tuesday", 
-          "date": "YYYY-MM-DD",
-          "workout": "Easy Run",
-          "distance": 3,
-          "duration": "25-30 min",
-          "description": "Comfortable conversational pace"
-        }
-      ]
-    }
-  ]
-}
+Please provide:
+1. Training overview and philosophy
+2. Weekly structure and progression
+3. Specific workout types and pacing guidelines
+4. Weekly breakdown with recommended workouts
+5. Tapering strategy for race preparation
+6. Injury prevention tips
 
-Make sure each week has 7 workouts (Monday through Sunday) and the plan is realistic and progressive.`;
+Write this as a comprehensive text guide that the runner can follow. Be specific about pacing, distances, and progression.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -105,11 +75,11 @@ Make sure each week has 7 workouts (Monday through Sunday) and the plan is reali
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert running coach who creates detailed, personalized training plans. You MUST respond with valid JSON only. Do not include any text before or after the JSON object. The response must be parseable by JSON.parse().' 
+            content: 'You are an expert running coach who creates detailed, personalized training plans. Provide comprehensive text-based training plans that runners can easily follow.' 
           },
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 8000,
+        max_completion_tokens: 4000,
       }),
     });
 
@@ -122,36 +92,16 @@ Make sure each week has 7 workouts (Monday through Sunday) and the plan is reali
     const data = await response.json();
     console.log('OpenAI response received');
     
-    const aiResponseContent = data.choices[0].message.content;
-    console.log('AI Response Length:', aiResponseContent.length);
-    console.log('AI Response Preview:', aiResponseContent.substring(0, 500));
+    const trainingPlanText = data.choices[0].message.content;
+    console.log('Training plan generated, length:', trainingPlanText.length);
 
-    let trainingPlan;
-    try {
-      // Clean the response - remove any potential markdown code block markers
-      let cleanedContent = aiResponseContent.trim();
-      if (cleanedContent.startsWith('```json')) {
-        cleanedContent = cleanedContent.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-      }
-      if (cleanedContent.startsWith('```')) {
-        cleanedContent = cleanedContent.replace(/^```\n?/, '').replace(/\n?```$/, '');
-      }
-      
-      trainingPlan = JSON.parse(cleanedContent);
-      console.log('Training plan parsed successfully');
-    } catch (parseError) {
-      console.error('JSON parsing error:', parseError);
-      console.error('Raw AI response:', aiResponseContent);
-      throw new Error(`Failed to parse training plan from AI response. Response length: ${aiResponseContent.length}`);
-    }
-
-    // Save the training plan to the database
+    // Save the training plan to the database as text
     const { data: savedPlan, error: saveError } = await supabase
       .from('training_plans')
       .insert({
         user_id: user.id,
         profile_id: profileData.id,
-        plan_content: trainingPlan,
+        plan_content: { text: trainingPlanText }, // Store as simple object with text property
         start_date: today.toISOString().split('T')[0],
         end_date: profileData.race_date,
       })
@@ -167,7 +117,7 @@ Make sure each week has 7 workouts (Monday through Sunday) and the plan is reali
 
     return new Response(JSON.stringify({ 
       success: true, 
-      trainingPlan, 
+      trainingPlanText, 
       planId: savedPlan.id 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

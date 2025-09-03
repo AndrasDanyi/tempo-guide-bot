@@ -25,6 +25,18 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
   const [selectedDay, setSelectedDay] = useState<WorkoutDay | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  console.log('=== TrainingCalendarView Debug ===');
+  console.log('trainingPlan received:', typeof trainingPlan, trainingPlan?.length);
+  console.log('profile received:', profile);
+  
+  // Let's check if the training plan is truncated
+  if (trainingPlan && typeof trainingPlan === 'string') {
+    console.log('Training plan first 200 chars:', trainingPlan.substring(0, 200));
+    console.log('Training plan last 200 chars:', trainingPlan.substring(trainingPlan.length - 200));
+    console.log('Contains "date:" entries:', trainingPlan.includes('date:'));
+    console.log('Date entries found:', (trainingPlan.match(/date:/g) || []).length);
+  }
+
   // Parse training plan to extract daily workouts
   const workoutDays = useMemo(() => {
     if (!trainingPlan || typeof trainingPlan !== 'string') {

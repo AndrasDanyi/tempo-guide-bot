@@ -206,11 +206,52 @@ const Index = () => {
               <p className="text-muted-foreground">
                 Goal: {profile.goal} • Race Date: {new Date(profile.race_date).toLocaleDateString()}
               </p>
+              <div className="mt-4">
+                <Button 
+                  onClick={() => generateTrainingPlan(profile)} 
+                  variant="outline"
+                  size="sm"
+                >
+                  Regenerate Training Plan
+                </Button>
+              </div>
             </div>
-            <TrainingPlanDisplay 
-              trainingPlan={trainingPlan.plan_content.text} 
-              profile={profile}
-            />
+            
+            {/* Debug info */}
+            <div className="mb-4 p-4 bg-muted rounded text-xs">
+              <p><strong>Debug Info:</strong></p>
+              <p>Training Plan exists: {trainingPlan ? 'Yes' : 'No'}</p>
+              {trainingPlan && (
+                <>
+                  <p>Plan ID: {trainingPlan.id}</p>
+                  <p>Plan content type: {typeof trainingPlan.plan_content}</p>
+                  <p>Has text property: {trainingPlan.plan_content?.text ? 'Yes' : 'No'}</p>
+                  <p>Content length: {trainingPlan.plan_content?.text?.length || 0} chars</p>
+                  <p>Content preview: {trainingPlan.plan_content?.text?.substring(0, 200)}...</p>
+                </>
+              )}
+            </div>
+            
+            {trainingPlan?.plan_content?.text ? (
+              <TrainingPlanDisplay 
+                trainingPlan={trainingPlan.plan_content.text} 
+                profile={profile}
+              />
+            ) : (
+              <Card className="max-w-md mx-auto">
+                <CardHeader>
+                  <CardTitle>No Training Plan Found</CardTitle>
+                  <CardDescription>
+                    It seems your training plan is missing or corrupted.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={() => generateTrainingPlan(profile)} className="w-full">
+                    Generate New Training Plan
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </main>

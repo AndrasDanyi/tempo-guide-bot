@@ -104,7 +104,10 @@ Be specific about pacing, distances, and progression. Make it comprehensive and 
     console.log('OpenAI response received');
     
     const trainingPlanText = data.choices[0].message.content;
-    console.log('Training plan generated, length:', trainingPlanText.length);
+    console.log('Training plan generated successfully');
+    console.log('Plan length:', trainingPlanText.length);
+    console.log('Plan preview (first 500 chars):', trainingPlanText.substring(0, 500));
+    console.log('Plan preview (last 200 chars):', trainingPlanText.slice(-200));
 
     // Save the training plan to the database as text
     const { data: savedPlan, error: saveError } = await supabase

@@ -43,21 +43,38 @@ serve(async (req) => {
     const raceDate = new Date(profileData.race_date);
     const daysDifference = Math.ceil((raceDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
-    const prompt = `You are an expert running coach. Create a detailed personalized training plan for a runner with the following information:
+    const prompt = `You are an expert running coach. Create a detailed, personalized training plan.
 
-Goal: ${profileData.goal}
-Race Date: ${profileData.race_date} (${daysDifference} days from today)
-Age: ${profileData.age}
-Height: ${profileData.height} cm
-Training History: ${profileData.training_history || 'No specific history provided'}
-Injuries: ${profileData.injuries || 'None reported'}
+### USER PROFILE
+- Name: ${profileData.full_name || 'Not provided'}
+- Age: ${profileData.age || 'Not provided'}
+- Gender: ${profileData.gender || 'Not provided'}
+- Height: ${profileData.height || 'Not provided'} cm
+- Weight: ${profileData.weight_kg || 'Not provided'} kg
+- Running Experience: ${profileData.experience_years || 'Not specified'} years
+- Current Weekly Mileage: ${profileData.current_weekly_mileage || 'Not specified'} km
+- Longest Recent Run: ${profileData.longest_run_km || 'Not specified'} km
+- Training History Summary: ${profileData.training_history || 'No specific history provided'}
+- Recent Race Performances: ${profileData.race_results || 'None provided'}
+- Strength Training Habits: ${profileData.strength_notes || 'Not specified'}
+- Injury History: ${profileData.injuries || 'None reported'}
 
-Create a day-by-day training plan from today (${today.toISOString().split('T')[0]}) until race day (${profileData.race_date}).
+### GOAL / CONTEXT
+- Target Event: ${profileData.race_name || 'Not specified'} (${profileData.race_distance_km || 'Not specified'} km, ${profileData.race_surface || 'road'})
+- Target Date: ${profileData.race_date} (${daysDifference} days from today)
+- Target Pace/Time: ${profileData.goal_pace_per_km || 'Not specified'}
+- Days Available to Run: ${profileData.days_per_week || 5} days per week
+- Typical Terrain/Elevation: ${profileData.elevation_context || 'flat'}
+- Preferred Units: ${profileData.units || 'metric'}
+- Time Constraints: ${profileData.time_limits || 'None specified'}
+
+### OUTPUT REQUIREMENTS
+Generate a plan from ${today.toISOString().split('T')[0]} until ${profileData.race_date}, covering every day. 
 
 CRITICAL: Format your response with EXACT daily entries as follows:
 
 TRAINING PLAN OVERVIEW
-[Brief overview of training philosophy and approach]
+[Brief overview of training philosophy and approach tailored to this specific runner]
 
 DAILY SCHEDULE
 
@@ -65,31 +82,37 @@ Day 1
 Date: ${today.toISOString().split('T')[0]}
 Day of week: ${today.toLocaleDateString('en-US', { weekday: 'long' })}
 Workout type: [Rest/Easy Run/Tempo Run/Long Run/Intervals/etc.]
-Distance: [X km or 0 km for rest days]
+Distance: [X.X km or 0.0 km for rest days]
 Duration: [X min]
-Detailed description: [Specific workout details, pacing guidelines, and instructions]
+Detailed description: [Specific workout details, pacing guidelines, instructions, heart rate zones if applicable]
 
 Day 2
 Date: ${new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
 Day of week: ${new Date(today.getTime() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long' })}
 Workout type: [workout type]
-Distance: [X km]
+Distance: [X.X km]
 Duration: [X min]
-Detailed description: [workout details]
+Detailed description: [workout details with specific paces, heart rate zones, nutrition guidance]
 
 Continue this exact format for every single day from Day 1 (today) through Day ${daysDifference} (race day).
 
-IMPORTANT: 
+IMPORTANT REQUIREMENTS: 
 - Use EXACTLY this format for every day
 - Include ALL ${daysDifference} days
 - Start with Day 1 = today (${today.toISOString().split('T')[0]})
 - End with Day ${daysDifference} = race day (${profileData.race_date})
-- Include specific distances in km
+- Include specific distances in km (use decimal format like 5.0, 12.5)
 - Include specific durations in minutes
-- Provide detailed pacing and instruction for each workout
+- Provide detailed pacing, heart rate zones, and specific workout instructions
+- Consider the runner's experience level, current fitness, injury history, and time constraints
+- Ensure progression is safe given their background
+- Include proper taper if race goal exists
+- Make sessions realistic given their availability (${profileData.days_per_week || 5} days per week)
+- Account for their typical terrain (${profileData.elevation_context || 'flat'})
+- Consider their injury history in workout selection and intensity
 
 ADDITIONAL GUIDANCE
-[Include injury prevention tips, nutrition advice, and tapering strategy]`;
+[Include personalized injury prevention tips, nutrition advice, tapering strategy, and race day preparation based on their specific profile and goals]`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

@@ -129,7 +129,7 @@ Return **valid JSON only**, with no extra text, markdown, or explanations.`;
           },
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 100000,
+        max_completion_tokens: 200000,
       }),
     });
 

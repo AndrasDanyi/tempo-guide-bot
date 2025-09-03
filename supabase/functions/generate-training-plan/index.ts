@@ -43,76 +43,86 @@ serve(async (req) => {
     const raceDate = new Date(profileData.race_date);
     const daysDifference = Math.ceil((raceDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
-    const prompt = `You are an expert running coach. Create a detailed, personalized training plan.
+    const prompt = `You are an expert running coach. Generate a **personalized, day-by-day training plan** for the runner, following all standard coaching principles (progressive overload, periodization, tapering, recovery, and injury prevention).
 
 ### USER PROFILE
 - Name: ${profileData.full_name || 'Not provided'}
 - Age: ${profileData.age || 'Not provided'}
 - Gender: ${profileData.gender || 'Not provided'}
-- Height: ${profileData.height || 'Not provided'} cm
-- Weight: ${profileData.weight_kg || 'Not provided'} kg
-- Running Experience: ${profileData.experience_years || 'Not specified'} years
-- Current Weekly Mileage: ${profileData.current_weekly_mileage || 'Not specified'} km
-- Longest Recent Run: ${profileData.longest_run_km || 'Not specified'} km
+- Height: ${profileData.height || 'Not provided'}
+- Weight: ${profileData.weight_kg || 'Not provided'}
+- Running Experience: ${profileData.experience_years || 'Not specified'}
+- Current Weekly Mileage: ${profileData.current_weekly_mileage || 'Not specified'}
+- Longest Comfortable Run: ${profileData.longest_run_km || 'Not specified'}
 - Training History Summary: ${profileData.training_history || 'No specific history provided'}
 - Recent Race Performances: ${profileData.race_results || 'None provided'}
+- Past Injuries / Limitations: ${profileData.injuries || 'None reported'}
 - Strength Training Habits: ${profileData.strength_notes || 'Not specified'}
-- Injury History: ${profileData.injuries || 'None reported'}
+- Typical Terrain / Elevation: ${profileData.elevation_context || 'flat'}
+- Goal Pace / Time: ${profileData.goal_pace_per_km || 'Not specified'}
+- Race Name / Distance / Date: ${profileData.race_name || 'Not specified'}, ${profileData.race_distance_km || 'Not specified'}, ${profileData.race_date}
+- Training Days per Week: ${profileData.days_per_week || 5}
+- Further Notes (free-form): ${profileData.further_notes || 'None provided'}
 
-### GOAL / CONTEXT
-- Target Event: ${profileData.race_name || 'Not specified'} (${profileData.race_distance_km || 'Not specified'} km, ${profileData.race_surface || 'road'})
-- Target Date: ${profileData.race_date} (${daysDifference} days from today)
-- Target Pace/Time: ${profileData.goal_pace_per_km || 'Not specified'}
-- Days Available to Run: ${profileData.days_per_week || 5} days per week
-- Typical Terrain/Elevation: ${profileData.elevation_context || 'flat'}
-- Preferred Units: ${profileData.units || 'metric'}
-- Time Constraints: ${profileData.time_limits || 'None specified'}
+### TRAINING PRINCIPLES
+1. **Progressive Overload & Recovery**
+   - Increase weekly mileage by max 5–10% per week.  
+   - Include a recovery week every 4th week (-20% mileage).  
+   - Long runs build gradually (+2–3 km/week) and peak at 30–40% of weekly mileage.  
+2. **Periodization**
+   - Base Phase: Build aerobic foundation (if plan ≥10 weeks).  
+   - Build Phase: Add tempos/intervals 1–2x per week.  
+   - Peak Phase: Highest mileage 3 weeks before race.  
+   - Taper Phase: 
+     - Week -2: reduce mileage 20–30%  
+     - Week -1: reduce mileage 40–60%  
+     - Keep intensity but reduce volume.  
+     - Final long run 14 days before race.  
+3. **Short Plan Handling (≤8 weeks)**
+   - Skip base phase. Maintain current mileage and gradually sharpen key workouts.  
+   - Minimal mileage growth (≤5% per week).  
+   - Short taper (last 5–7 days).  
+4. **Beginner / Advanced Adjustments**
+   - Beginners (<20 km/week): build base before intervals.  
+   - Advanced (>40 km/week): include weekly intervals & tempo runs.  
+5. **Further Notes Integration**
+   - Review "Further Notes" for preferred training times, schedule/terrain constraints, cross-training, personal goals, or extra health considerations.  
+   - Adjust daily schedule or mileage accordingly, but prioritize safety.  
+6. **Missing Inputs Handling**
+   - If any required input is missing, assume safe, conservative defaults and document them in an "assumptions_made" summary.  
+   - Example: mileage not provided → assume 25 km/week; long run unknown → 10 km; flat terrain if unspecified.  
 
-### OUTPUT REQUIREMENTS
-Generate a plan from ${today.toISOString().split('T')[0]} until ${profileData.race_date}, covering every day. 
+### OUTPUT FORMAT
+For each day, include:
+- \`date\` (YYYY-MM-DD)
+- \`training_session\` (e.g., Rest, Easy Run, Tempo, Long Run, Intervals)
+- \`mileage_breakdown\` (warm-up / main / cooldown in km or minutes)
+- \`pace_targets\` (per segment or range)
+- \`heart_rate_zones\` (Z1–Z5)
+- \`purpose\` (why the session exists)
+- \`session_load\` (Low/Medium/High)
+- \`notes\` (technical focus, drills, warnings, adjustments per Further Notes)
+- \`what_to_eat_drink\` (pre/during/post fueling)
+- \`additional_training\` (strength, mobility, cross-training)
+- \`recovery_training\` (foam rolling, yoga, mobility flow)
+- \`estimated_distance_km\`
+- \`estimated_avg_pace_min_per_km\`
+- \`estimated_moving_time\` (h:mm)
+- \`estimated_elevation_gain_m\`
+- \`estimated_avg_power_w\`
+- \`estimated_cadence_spm\`
+- \`estimated_calories\`
+- \`daily_nutrition_advice\` (carbs/protein target + 2 meal/snack suggestions)
 
-CRITICAL: Format your response with EXACT daily entries as follows:
+### RULES
+- Cover every single day from start date to race day, including rest days.  
+- Make progression realistic, respect fatigue & injuries, include recovery weeks and proper tapering.  
+- If any assumptions were made due to missing inputs, include a short \`"assumptions_made"\` summary at the top.  
+- Short plans (<8 weeks) must prioritize safe progression and sharpening rather than a full base/build phase.  
+- Keep all sessions actionable and specific to the runner's profile, terrain, and goals.  
+- Only output the structured day-by-day plan; no extra explanations or text outside the plan.
 
-TRAINING PLAN OVERVIEW
-[Brief overview of training philosophy and approach tailored to this specific runner]
-
-DAILY SCHEDULE
-
-Day 1
-Date: ${today.toISOString().split('T')[0]}
-Day of week: ${today.toLocaleDateString('en-US', { weekday: 'long' })}
-Workout type: [Rest/Easy Run/Tempo Run/Long Run/Intervals/etc.]
-Distance: [X.X km or 0.0 km for rest days]
-Duration: [X min]
-Detailed description: [Specific workout details, pacing guidelines, instructions, heart rate zones if applicable]
-
-Day 2
-Date: ${new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-Day of week: ${new Date(today.getTime() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long' })}
-Workout type: [workout type]
-Distance: [X.X km]
-Duration: [X min]
-Detailed description: [workout details with specific paces, heart rate zones, nutrition guidance]
-
-Continue this exact format for every single day from Day 1 (today) through Day ${daysDifference} (race day).
-
-IMPORTANT REQUIREMENTS: 
-- Use EXACTLY this format for every day
-- Include ALL ${daysDifference} days
-- Start with Day 1 = today (${today.toISOString().split('T')[0]})
-- End with Day ${daysDifference} = race day (${profileData.race_date})
-- Include specific distances in km (use decimal format like 5.0, 12.5)
-- Include specific durations in minutes
-- Provide detailed pacing, heart rate zones, and specific workout instructions
-- Consider the runner's experience level, current fitness, injury history, and time constraints
-- Ensure progression is safe given their background
-- Include proper taper if race goal exists
-- Make sessions realistic given their availability (${profileData.days_per_week || 5} days per week)
-- Account for their typical terrain (${profileData.elevation_context || 'flat'})
-- Consider their injury history in workout selection and intensity
-
-ADDITIONAL GUIDANCE
-[Include personalized injury prevention tips, nutrition advice, tapering strategy, and race day preparation based on their specific profile and goals]`;
+Generate a plan from ${today.toISOString().split('T')[0]} until ${profileData.race_date}, covering every day (${daysDifference} days total).`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

@@ -125,7 +125,7 @@ Return **valid JSON only**, with no extra text, markdown, or explanations.`;
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert running coach who creates detailed, personalized training plans. Provide comprehensive text-based training plans that runners can easily follow.' 
+            content: 'You are an expert running coach who creates detailed, personalized training plans. You must respond with valid JSON only, following the exact format requested in the user prompt. Do not include any explanatory text, markdown, or additional content - only pure JSON.' 
           },
           { role: 'user', content: prompt }
         ],

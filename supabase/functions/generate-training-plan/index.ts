@@ -93,26 +93,31 @@ serve(async (req) => {
    - Example: mileage not provided → assume 25 km/week; long run unknown → 10 km; flat terrain if unspecified.  
 
 ### OUTPUT FORMAT
-For each day, include:
-- \`date\` (YYYY-MM-DD)
-- \`training_session\` (e.g., Rest, Easy Run, Tempo, Long Run, Intervals)
-- \`mileage_breakdown\` (warm-up / main / cooldown in km or minutes)
-- \`pace_targets\` (per segment or range)
-- \`heart_rate_zones\` (Z1–Z5)
-- \`purpose\` (why the session exists)
-- \`session_load\` (Low/Medium/High)
-- \`notes\` (technical focus, drills, warnings, adjustments per Further Notes)
-- \`what_to_eat_drink\` (pre/during/post fueling)
-- \`additional_training\` (strength, mobility, cross-training)
-- \`recovery_training\` (foam rolling, yoga, mobility flow)
-- \`estimated_distance_km\`
-- \`estimated_avg_pace_min_per_km\`
-- \`estimated_moving_time\` (h:mm)
-- \`estimated_elevation_gain_m\`
-- \`estimated_avg_power_w\`
-- \`estimated_cadence_spm\`
-- \`estimated_calories\`
-- \`daily_nutrition_advice\` (carbs/protein target + 2 meal/snack suggestions)
+CRITICAL: Wrap each training day with clear delimiters for easy parsing.
+
+For each day, use this EXACT format:
+
+===DAY_START===
+date: YYYY-MM-DD
+training_session: (e.g., Rest, Easy Run, Tempo, Long Run, Intervals)
+mileage_breakdown: (warm-up / main / cooldown in km or minutes)
+pace_targets: (per segment or range)
+heart_rate_zones: (Z1–Z5)
+purpose: (why the session exists)
+session_load: (Low/Medium/High)
+notes: (technical focus, drills, warnings, adjustments per Further Notes)
+what_to_eat_drink: (pre/during/post fueling)
+additional_training: (strength, mobility, cross-training)
+recovery_training: (foam rolling, yoga, mobility flow)
+estimated_distance_km: (number only)
+estimated_avg_pace_min_per_km: (format: mm:ss)
+estimated_moving_time: (format: h:mm)
+estimated_elevation_gain_m: (number only)
+estimated_avg_power_w: (number only)
+estimated_cadence_spm: (number only)
+estimated_calories: (number only)
+daily_nutrition_advice: (carbs/protein target + 2 meal/snack suggestions)
+===DAY_END===
 
 ### RULES
 - Cover every single day from start date to race day, including rest days.  

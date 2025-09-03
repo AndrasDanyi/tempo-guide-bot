@@ -26,7 +26,7 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
   const [selectedDay, setSelectedDay] = useState<WorkoutDay | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Parse training plan to extract daily workouts using sequential day mapping
+  // Parse training plan using delimiters for reliable day separation
   const workoutDays = useMemo(() => {
     if (!trainingPlan || typeof trainingPlan !== 'string' || !profile?.race_date) {
       console.log('Missing training plan or race date');
@@ -34,105 +34,60 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
     }
     
     const days: WorkoutDay[] = [];
-    const lines = trainingPlan.split('\n');
-    
-    // Find the plan creation/start date from database
     const planStartDate_date = new Date(planStartDate);
-    const raceDate = new Date(profile.race_date);
     
-    let currentSessionDay = 0;
-    let currentSession: Partial<WorkoutDay> = {};
-    let collectingDescription = false;
-    let description = '';
+    // Split by day delimiters for reliable parsing
+    const dayBlocks = trainingPlan.split('===DAY_START===').slice(1); // Remove empty first element
     
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+    console.log('Found day blocks:', dayBlocks.length);
+    
+    dayBlocks.forEach((block, index) => {
+      const dayContent = block.split('===DAY_END===')[0];
+      if (!dayContent) return;
       
-      // Skip empty lines and assumptions section
-      if (!line || line.startsWith('assumptions_made:') || line.startsWith('-')) {
-        continue;
-      }
+      const lines = dayContent.split('\n').map(line => line.trim()).filter(Boolean);
+      const session: Partial<WorkoutDay> = {};
+      let description = '';
       
-      // Look for date entries (but we'll ignore the actual date and use sequential mapping)
-      if (line.startsWith('date: ')) {
-        // Save previous session if it exists
-        if (currentSession.workout && currentSessionDay > 0) {
-          if (collectingDescription) {
-            currentSession.description = description.trim();
-          }
-          
-          // Calculate the actual calendar date for this session
-          const sessionDate = new Date(planStartDate_date);
-          sessionDate.setDate(sessionDate.getDate() + (currentSessionDay - 1));
-          
-          currentSession.date = sessionDate;
-          days.push(currentSession as WorkoutDay);
-        }
-        
-        // Start new session
-        currentSessionDay++;
-        currentSession = {};
-        collectingDescription = false;
-        description = '';
-        continue;
-      }
-      
-      // Look for training session (workout type)
-      if (line.startsWith('training_session: ')) {
-        currentSession.workout = line.replace('training_session: ', '').trim();
-        continue;
-      }
-      
-      // Look for estimated distance
-      if (line.startsWith('estimated_distance_km: ')) {
-        const distance = line.replace('estimated_distance_km: ', '').trim();
-        currentSession.distance = distance + ' km';
-        continue;
-      }
-      
-      // Look for estimated moving time (duration)
-      if (line.startsWith('estimated_moving_time: ')) {
-        currentSession.duration = line.replace('estimated_moving_time: ', '').trim();
-        continue;
-      }
-      
-      // Collect all other fields for description
-      if (currentSession.workout && 
-          !line.startsWith('date: ') && 
-          !line.startsWith('training_session: ') &&
-          !line.startsWith('estimated_distance_km: ') &&
-          !line.startsWith('estimated_moving_time: ')) {
-        
-        collectingDescription = true;
-        
-        // Format the field for better readability
+      lines.forEach(line => {
         if (line.includes(': ')) {
           const [field, value] = line.split(': ', 2);
-          const formattedField = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-          description += `\n**${formattedField}:** ${value}`;
-        } else {
-          description += '\n' + line;
+          
+          switch (field) {
+            case 'training_session':
+              session.workout = value;
+              break;
+            case 'estimated_distance_km':
+              const distanceNum = parseFloat(value);
+              if (!isNaN(distanceNum) && distanceNum > 0) {
+                session.distance = distanceNum + ' km';
+              }
+              break;
+            case 'estimated_moving_time':
+              session.duration = value;
+              break;
+            default:
+              // Add other fields to description
+              const formattedField = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              description += `**${formattedField}:** ${value}\n`;
+          }
         }
-      }
-    }
-    
-    // Don't forget the last session
-    if (currentSession.workout && currentSessionDay > 0) {
-      if (collectingDescription) {
-        currentSession.description = description.trim();
-      }
+      });
       
+      // Calculate the calendar date for this day (Day 1 = planStartDate, Day 2 = planStartDate + 1, etc.)
       const sessionDate = new Date(planStartDate_date);
-      sessionDate.setDate(sessionDate.getDate() + (currentSessionDay - 1));
+      sessionDate.setDate(sessionDate.getDate() + index);
       
-      currentSession.date = sessionDate;
-      days.push(currentSession as WorkoutDay);
-    }
+      if (session.workout) {
+        session.date = sessionDate;
+        session.description = description.trim();
+        days.push(session as WorkoutDay);
+      }
+    });
     
-    console.log('Parsed workout sessions:', days.length);
+    console.log('Parsed workout sessions with delimiters:', days.length);
     console.log('Plan start date:', planStartDate_date.toDateString());
-    console.log('Race date:', raceDate.toDateString());
-    console.log('Sample session:', days[0]);
+    console.log('Sample sessions:', days.slice(0, 3));
     
     return days;
   }, [trainingPlan, profile?.race_date, planStartDate]);

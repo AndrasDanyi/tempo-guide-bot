@@ -31,7 +31,7 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
   const [dayDetails, setDayDetails] = useState<string | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
-  // Parse training plan using the new pipe-delimited format
+  // Parse training plan - support both old and new formats
   const workoutDays = useMemo(() => {
     if (!trainingPlan || typeof trainingPlan !== 'string' || !profile?.race_date) {
       console.log('Missing training plan or race date');
@@ -40,34 +40,91 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
     
     const days: WorkoutDay[] = [];
     
-    // Split by lines and parse pipe-delimited format: DATE|DAY|TYPE|KM|MIN|LOAD|PURPOSE
-    const lines = trainingPlan.split('\n').filter(line => line.trim() && line.includes('|'));
-    
-    console.log('Found plan lines:', lines.length);
-    
-    lines.forEach((line) => {
-      const parts = line.split('|').map(part => part.trim());
-      if (parts.length >= 7) {
-        const [dateStr, dayOfWeek, type, km, minutes, load, purpose] = parts;
+    // Check if it's the new pipe-delimited format or old format
+    if (trainingPlan.includes('|') && !trainingPlan.includes('===DAY_START===')) {
+      // New pipe-delimited format: DATE|DAY|TYPE|KM|MIN|LOAD|PURPOSE
+      const lines = trainingPlan.split('\n').filter(line => line.trim() && line.includes('|'));
+      
+      console.log('Found plan lines (pipe format):', lines.length);
+      
+      lines.forEach((line) => {
+        const parts = line.split('|').map(part => part.trim());
+        if (parts.length >= 7) {
+          const [dateStr, dayOfWeek, type, km, minutes, load, purpose] = parts;
+          
+          const sessionDate = new Date(dateStr);
+          if (isNaN(sessionDate.getTime())) return; // Skip invalid dates
+          
+          const session: WorkoutDay = {
+            date: sessionDate,
+            workout: type,
+            distance: km && km !== '0' ? `${km} km` : undefined,
+            duration: minutes && minutes !== '0' ? `${minutes} min` : undefined,
+            sessionLoad: load,
+            purpose: purpose,
+            description: `**Session Load:** ${load}\n**Purpose:** ${purpose}\n**Day:** ${dayOfWeek}`
+          };
+          
+          days.push(session);
+        }
+      });
+    } else {
+      // Old delimited format for backward compatibility
+      const planStartDate_date = new Date(planStartDate);
+      const dayBlocks = trainingPlan.split('===DAY_START===').slice(1);
+      
+      console.log('Found day blocks (old format):', dayBlocks.length);
+      
+      dayBlocks.forEach((block, index) => {
+        const dayContent = block.split('===DAY_END===')[0];
+        if (!dayContent) return;
         
-        const sessionDate = new Date(dateStr);
-        if (isNaN(sessionDate.getTime())) return; // Skip invalid dates
+        const lines = dayContent.split('\n').map(line => line.trim()).filter(Boolean);
+        const session: Partial<WorkoutDay> = {};
+        let description = '';
         
-        const session: WorkoutDay = {
-          date: sessionDate,
-          workout: type,
-          distance: km && km !== '0' ? `${km} km` : undefined,
-          duration: minutes && minutes !== '0' ? `${minutes} min` : undefined,
-          sessionLoad: load,
-          purpose: purpose,
-          description: `**Session Load:** ${load}\n**Purpose:** ${purpose}\n**Day:** ${dayOfWeek}`
-        };
+        lines.forEach(line => {
+          if (line.includes(': ')) {
+            const [field, value] = line.split(': ', 2);
+            
+            switch (field) {
+              case 'training_session':
+                session.workout = value;
+                break;
+              case 'estimated_distance_km':
+                const distanceNum = parseFloat(value);
+                if (!isNaN(distanceNum) && distanceNum > 0) {
+                  session.distance = distanceNum + ' km';
+                }
+                break;
+              case 'estimated_moving_time':
+                session.duration = value;
+                break;
+              case 'session_load':
+                (session as any).sessionLoad = value;
+                break;
+              case 'purpose':
+                (session as any).purpose = value;
+                break;
+              default:
+                const formattedField = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                description += `**${formattedField}:** ${value}\n`;
+            }
+          }
+        });
         
-        days.push(session);
-      }
-    });
+        const sessionDate = new Date(planStartDate_date);
+        sessionDate.setDate(sessionDate.getDate() + index);
+        
+        if (session.workout) {
+          session.date = sessionDate;
+          session.description = description.trim();
+          days.push(session as WorkoutDay);
+        }
+      });
+    }
     
-    console.log('Parsed workout sessions with pipe format:', days.length);
+    console.log('Parsed workout sessions:', days.length);
     console.log('Sample sessions:', days.slice(0, 3));
     
     return days;

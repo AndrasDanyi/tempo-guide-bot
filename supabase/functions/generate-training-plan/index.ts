@@ -43,12 +43,30 @@ serve(async (req) => {
     const raceDate = new Date(profileData.race_date);
     const daysDifference = Math.ceil((raceDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
-    const prompt = `${daysDifference}-day plan for ${profileData.race_distance_km || 21}K race. Start: ${today.toISOString().split('T')[0]}, Race: ${profileData.race_date}
+    const prompt = `Create a ${daysDifference}-day running training plan.
 
-Format per day:
-DATE|DAY|TYPE|KM|MIN|LOAD|PURPOSE
+Runner Profile:
+- Goal: ${profileData.race_distance_km || 21}km race on ${profileData.race_date}  
+- Current fitness: ${profileData.current_weekly_mileage || 30}km/week
+- Days per week: ${profileData.days_per_week || 5}
 
-Example: 2025-09-03|Tue|Easy Run|8|45|Low|Base building`;
+Requirements:
+- Start date: ${today.toISOString().split('T')[0]}
+- End date: ${profileData.race_date}
+- Progressive training with proper taper
+- Include rest days
+
+Output format (one line per day):
+DATE|DAY|SESSION_TYPE|DISTANCE_KM|DURATION_MIN|LOAD|PURPOSE
+
+Session types: Rest, Easy Run, Long Run, Tempo, Intervals
+Load levels: Low, Medium, High
+
+Example:
+2025-09-03|Tuesday|Easy Run|10|60|Low|Base building
+2025-09-04|Wednesday|Intervals|8|45|High|Speed work
+
+Generate all ${daysDifference} days now:`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

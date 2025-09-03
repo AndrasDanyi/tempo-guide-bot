@@ -3,5 +3,5 @@ project_id = "otwcyimspsqxmbwzlmjo"
 [functions.generate-training-plan]
 verify_jwt = true
 
-[functions.enhance-training-plan]
+[functions.generate-day-details]
 verify_jwt = true

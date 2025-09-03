@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, Target } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, Target, Loader2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WorkoutDay {
   date: Date;
@@ -13,6 +14,8 @@ interface WorkoutDay {
   distance?: string;
   duration?: string;
   description: string;
+  sessionLoad?: string;
+  purpose?: string;
 }
 
 interface TrainingCalendarViewProps {
@@ -25,6 +28,8 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<WorkoutDay | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dayDetails, setDayDetails] = useState<string | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   // Parse training plan using delimiters for reliable day separation
   const workoutDays = useMemo(() => {
@@ -65,6 +70,12 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
               break;
             case 'estimated_moving_time':
               session.duration = value;
+              break;
+            case 'session_load':
+              (session as any).sessionLoad = value;
+              break;
+            case 'purpose':
+              (session as any).purpose = value;
               break;
             default:
               // Add other fields to description
@@ -112,9 +123,48 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
     return 'bg-purple-100 text-purple-800 border-purple-200';
   };
 
-  const handleDayClick = (workout: WorkoutDay) => {
+  const handleDayClick = async (workout: WorkoutDay) => {
     setSelectedDay(workout);
     setIsDialogOpen(true);
+    setDayDetails(null);
+    setIsLoadingDetails(true);
+
+    try {
+      // Prepare day data for the AI prompt
+      const dayData = {
+        specific_date: format(workout.date, 'yyyy-MM-dd'),
+        training_session: workout.workout,
+        estimated_distance_km: parseFloat(workout.distance?.replace(' km', '') || '0'),
+        estimated_duration_min: workout.duration ? 
+          (workout.duration.includes(':') ? 
+            parseInt(workout.duration.split(':')[0]) * 60 + parseInt(workout.duration.split(':')[1]) 
+            : parseInt(workout.duration.replace(' min', ''))) 
+          : 0,
+        session_load: (workout as any).sessionLoad || 'Medium',
+        purpose: (workout as any).purpose || 'Training session'
+      };
+
+      const { data, error } = await supabase.functions.invoke('generate-day-details', {
+        body: {
+          profileData: profile,
+          dayData: dayData
+        }
+      });
+
+      if (error) {
+        console.error('Error generating day details:', error);
+        setDayDetails('Error loading detailed information. Please try again.');
+      } else if (data?.dayDetails) {
+        setDayDetails(data.dayDetails);
+      } else {
+        setDayDetails('No detailed information available for this day.');
+      }
+    } catch (error) {
+      console.error('Error calling day details function:', error);
+      setDayDetails('Error loading detailed information. Please try again.');
+    } finally {
+      setIsLoadingDetails(false);
+    }
   };
 
   const goToPreviousMonth = () => {
@@ -294,12 +344,24 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
                     <Target className="h-4 w-4" />
                     Workout Details
                   </h4>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedDay.description}</p>
+                  
+                  {isLoadingDetails ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                      <span className="text-sm">Generating detailed training plan...</span>
+                    </div>
+                  ) : dayDetails ? (
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap">{dayDetails}</div>
+                  ) : (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedDay.description}</p>
+                  )}
                 </div>
                 
-                <div className="text-xs text-muted-foreground text-center">
-                  <p>All training fields will be visible and easy to access once the enhanced AI coach provides detailed daily plans.</p>
-                </div>
+                {!isLoadingDetails && !dayDetails && (
+                  <div className="text-xs text-muted-foreground text-center">
+                    <p>Click to load detailed training instructions for this day.</p>
+                  </div>
+                )}
               </div>
             </ScrollArea>
           )}

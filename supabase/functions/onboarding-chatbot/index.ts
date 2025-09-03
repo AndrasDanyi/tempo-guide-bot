@@ -109,17 +109,18 @@ CRITICAL: Never respond with anything other than valid JSON. If you're uncertain
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
+        model: 'gpt-4o-mini',
         messages: messages,
-        max_completion_tokens: 1000,
+        max_tokens: 1000,
         temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('OpenAI API Error:', errorData);
-      throw new Error(`OpenAI API Error: ${response.status}`);
+      console.error('OpenAI API Error Status:', response.status);
+      console.error('OpenAI API Error Response:', errorData);
+      throw new Error(`OpenAI API Error: ${response.status} - ${errorData}`);
     }
 
     const data = await response.json();

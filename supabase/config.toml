@@ -1,1 +1,4 @@
 project_id = "otwcyimspsqxmbwzlmjo"
+
+[functions.generate-training-plan]
+verify_jwt = true

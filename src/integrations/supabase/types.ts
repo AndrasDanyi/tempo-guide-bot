@@ -14,7 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          age: number | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          goal: string
+          height: number | null
+          id: string
+          injuries: string | null
+          race_date: string
+          training_history: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          goal: string
+          height?: number | null
+          id?: string
+          injuries?: string | null
+          race_date: string
+          training_history?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age?: number | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          goal?: string
+          height?: number | null
+          id?: string
+          injuries?: string | null
+          race_date?: string
+          training_history?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      training_plans: {
+        Row: {
+          created_at: string
+          end_date: string
+          generated_at: string
+          id: string
+          plan_content: Json
+          profile_id: string
+          start_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          generated_at?: string
+          id?: string
+          plan_content: Json
+          profile_id: string
+          start_date: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          generated_at?: string
+          id?: string
+          plan_content?: Json
+          profile_id?: string
+          start_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_plans_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

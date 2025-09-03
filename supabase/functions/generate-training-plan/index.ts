@@ -90,7 +90,7 @@ Be specific about pacing, distances, and progression. Make it comprehensive and 
           },
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 4000,
+        max_completion_tokens: 100000,
       }),
     });
 
@@ -102,12 +102,32 @@ Be specific about pacing, distances, and progression. Make it comprehensive and 
 
     const data = await response.json();
     console.log('OpenAI response received');
+    console.log('Full OpenAI response:', JSON.stringify(data, null, 2));
+    
+    // Log token usage
+    if (data.usage) {
+      console.log('Token usage - Prompt tokens:', data.usage.prompt_tokens);
+      console.log('Token usage - Completion tokens:', data.usage.completion_tokens);
+      console.log('Token usage - Total tokens:', data.usage.total_tokens);
+    }
     
     const trainingPlanText = data.choices[0].message.content;
     console.log('Training plan generated successfully');
-    console.log('Plan length:', trainingPlanText.length);
-    console.log('Plan preview (first 500 chars):', trainingPlanText.substring(0, 500));
-    console.log('Plan preview (last 200 chars):', trainingPlanText.slice(-200));
+    console.log('Plan length:', trainingPlanText?.length || 0);
+    console.log('Plan exists:', !!trainingPlanText);
+    
+    if (trainingPlanText) {
+      console.log('Plan preview (first 500 chars):', trainingPlanText.substring(0, 500));
+      console.log('Plan preview (last 200 chars):', trainingPlanText.slice(-200));
+    } else {
+      console.log('ERROR: No training plan text generated!');
+      console.log('Response choices:', data.choices);
+    }
+
+    // Validate that we have content before saving
+    if (!trainingPlanText || trainingPlanText.trim().length === 0) {
+      throw new Error('OpenAI returned empty training plan content');
+    }
 
     // Save the training plan to the database as text
     const { data: savedPlan, error: saveError } = await supabase
@@ -128,11 +148,15 @@ Be specific about pacing, distances, and progression. Make it comprehensive and 
     }
 
     console.log('Training plan saved successfully');
+    console.log('Saved plan ID:', savedPlan.id);
+    console.log('Saved plan content length:', savedPlan.plan_content?.text?.length || 0);
 
     return new Response(JSON.stringify({ 
       success: true, 
       trainingPlanText, 
-      planId: savedPlan.id 
+      planId: savedPlan.id,
+      tokenUsage: data.usage || null,
+      contentLength: trainingPlanText?.length || 0
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

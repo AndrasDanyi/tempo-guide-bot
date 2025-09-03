@@ -46,16 +46,19 @@ const Index = () => {
         setProfile(profileData);
 
         // Fetch latest training plan
-        const { data: planData } = await supabase
+        const { data: planData, error: planError } = await supabase
           .from('training_plans')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
-        if (planData) {
+        if (planData && !planError) {
           setTrainingPlan(planData);
+          console.log('Training plan loaded:', planData.id);
+        } else {
+          console.log('No training plan found or error:', planError);
         }
       }
     } catch (error) {

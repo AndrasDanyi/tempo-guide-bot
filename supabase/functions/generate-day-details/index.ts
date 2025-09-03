@@ -30,59 +30,54 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { profileData, dayData } = await req.json();
+    const { trainingDayId, profileData, dayData } = await req.json();
 
-    if (!profileData || !dayData) {
-      throw new Error('Profile data and day data are required');
+    if (!trainingDayId || !profileData || !dayData) {
+      throw new Error('Training day ID, profile data and day data are required');
     }
 
-    console.log('Generating day details for:', dayData.specific_date);
+    console.log('Generating detailed fields for training day:', trainingDayId);
 
-    const prompt = `You are an expert running coach.
-Based on the following context, generate detailed instructions for the training day below.
+    const prompt = `You are an expert running coach. Generate detailed training instructions for this specific day.
 
-RUNNER PROFILE
-• Goal: ${profileData.goal || 'Not specified'}
-• Race date: ${profileData.race_date}
-• Age: ${profileData.age || 'Not provided'}
+RUNNER PROFILE:
+• Name: ${profileData.full_name || 'Not specified'}
+• Age: ${profileData.age || 'Not specified'}
 • Gender: ${profileData.gender || 'Not specified'}
-• Height: ${profileData.height || 'Not specified'}
-• Training history: ${profileData.experience_years || 'Not specified'} years
-• Current weekly mileage: ${profileData.current_weekly_mileage || 'Not specified'}
-• Longest comfortable run: ${profileData.longest_run_km || 'Not specified'} km
-• Past injuries: ${profileData.injury_notes || 'None specified'}
-• Strength training habits: ${profileData.strength_notes || 'Not specified'}
-• Elevation preference/terrain: ${profileData.elevation_context || 'Not specified'}
-• Days available per week: ${profileData.days_per_week || 5}
-• Further notes: ${profileData.further_notes || 'None'}
+• Height: ${profileData.height || 'Not specified'}cm
+• Weight: ${profileData.weight_kg || 'Not specified'}kg
+• Experience: ${profileData.experience_years || 'Not specified'} years
+• Weekly Mileage: ${profileData.current_weekly_mileage || 'Not specified'}km
+• Longest Run: ${profileData.longest_run_km || 'Not specified'}km
+• Past Injuries: ${profileData.injuries || 'None noted'}
+• Strength Training: ${profileData.strength_notes || 'Not specified'}
+• Terrain: ${profileData.elevation_context || 'Flat'}
+• Goal: ${profileData.goal}
+• Race Date: ${profileData.race_date}
 
-DAY CONTEXT
+TODAY'S WORKOUT:
 • Date: ${dayData.specific_date}
-• Training Session: ${dayData.training_session}
-• Estimated Distance: ${dayData.estimated_distance_km} km
-• Estimated Duration: ${dayData.estimated_duration_min} minutes
+• Session: ${dayData.training_session}
+• Distance: ${dayData.estimated_distance_km}km
+• Structure: ${dayData.mileage_breakdown || 'Not specified'}
+• Pace Targets: ${dayData.pace_targets || 'Not specified'}
 • Session Load: ${dayData.session_load}
 • Purpose: ${dayData.purpose}
 
-OUTPUT FIELDS
-• Mileage breakdown (warm-up, main set, cooldown)
-• Pace targets
-• Heart rate zones
-• Notes / technique focus
-• What to eat/drink before & during
-• Additional training (strength/mobility)
-• Recovery training (foam rolling, mobility)
-• Estimated metrics:
-  • Distance (km)
-  • Avg pace (min/km)
-  • Moving time
-  • Elevation gain (m)
-  • Avg power (W)
-  • Cadence (spm)
-  • Calories
-• Daily nutrition advice (meals + macros)
+Generate ONLY the following fields in this exact format:
 
-Keep this concise but actionable — no unnecessary explanations.`;
+HEART_RATE_ZONES: [zones for different segments]
+PURPOSE: [detailed purpose and why this workout matters]
+SESSION_LOAD: [Low/Medium/High with explanation]
+NOTES: [technique focus, form cues, mental tips]
+WHAT_TO_EAT_DRINK: [pre/during/post fueling advice]
+ADDITIONAL_TRAINING: [strength, mobility, cross-training]
+RECOVERY_TRAINING: [foam rolling, stretching, recovery protocols]
+ESTIMATED_ELEVATION_GAIN_M: [number only]
+ESTIMATED_AVG_POWER_W: [number only]
+ESTIMATED_CADENCE_SPM: [number only]
+ESTIMATED_CALORIES: [number only]
+DAILY_NUTRITION_ADVICE: [calorie target, macros, 2 meal suggestions]`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -93,10 +88,6 @@ Keep this concise but actionable — no unnecessary explanations.`;
       body: JSON.stringify({
         model: 'gpt-5-nano-2025-08-07',
         messages: [
-          { 
-            role: 'system', 
-            content: 'You are an expert running coach who provides detailed, actionable training instructions. Be specific and practical.' 
-          },
           { role: 'user', content: prompt }
         ],
         max_completion_tokens: 4000,
@@ -110,25 +101,85 @@ Keep this concise but actionable — no unnecessary explanations.`;
     }
 
     const data = await response.json();
-    console.log('Day details generated successfully');
+    console.log('Detailed fields generated successfully');
     
-    // Log token usage
-    if (data.usage) {
-      console.log('Token usage - Prompt tokens:', data.usage.prompt_tokens);
-      console.log('Token usage - Completion tokens:', data.usage.completion_tokens);
-      console.log('Token usage - Total tokens:', data.usage.total_tokens);
+    const generatedContent = data.choices[0].message.content;
+    if (!generatedContent || generatedContent.trim().length === 0) {
+      throw new Error('OpenAI returned empty content');
     }
-    
-    const dayDetails = data.choices[0].message.content;
 
-    // Validate that we have content
-    if (!dayDetails || dayDetails.trim().length === 0) {
-      throw new Error('OpenAI returned empty day details content');
+    // Parse the generated content
+    const lines = generatedContent.split('\n').filter(line => line.trim());
+    const detailedFields: any = {};
+
+    for (const line of lines) {
+      if (line.includes(':')) {
+        const [field, ...valueParts] = line.split(':');
+        const value = valueParts.join(':').trim();
+        
+        switch (field.trim()) {
+          case 'HEART_RATE_ZONES':
+            detailedFields.heart_rate_zones = value;
+            break;
+          case 'PURPOSE':
+            detailedFields.purpose = value;
+            break;
+          case 'SESSION_LOAD':
+            detailedFields.session_load = value;
+            break;
+          case 'NOTES':
+            detailedFields.notes = value;
+            break;
+          case 'WHAT_TO_EAT_DRINK':
+            detailedFields.what_to_eat_drink = value;
+            break;
+          case 'ADDITIONAL_TRAINING':
+            detailedFields.additional_training = value;
+            break;
+          case 'RECOVERY_TRAINING':
+            detailedFields.recovery_training = value;
+            break;
+          case 'ESTIMATED_ELEVATION_GAIN_M':
+            detailedFields.estimated_elevation_gain_m = parseInt(value) || null;
+            break;
+          case 'ESTIMATED_AVG_POWER_W':
+            detailedFields.estimated_avg_power_w = parseInt(value) || null;
+            break;
+          case 'ESTIMATED_CADENCE_SPM':
+            detailedFields.estimated_cadence_spm = parseInt(value) || null;
+            break;
+          case 'ESTIMATED_CALORIES':
+            detailedFields.estimated_calories = parseInt(value) || null;
+            break;
+          case 'DAILY_NUTRITION_ADVICE':
+            detailedFields.daily_nutrition_advice = value;
+            break;
+        }
+      }
     }
+
+    // Update the training day with detailed fields
+    const { data: updatedDay, error: updateError } = await supabase
+      .from('training_days')
+      .update({
+        ...detailedFields,
+        detailed_fields_generated: true
+      })
+      .eq('id', trainingDayId)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Database update error:', updateError);
+      throw new Error('Failed to save detailed fields to database');
+    }
+
+    console.log('Detailed fields saved successfully');
 
     return new Response(JSON.stringify({ 
       success: true, 
-      dayDetails,
+      updatedTrainingDay: updatedDay,
       tokenUsage: data.usage || null
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

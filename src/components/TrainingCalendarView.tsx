@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,15 +7,32 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, Target, Loader2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from "@/hooks/use-toast";
 
-interface WorkoutDay {
-  date: Date;
-  workout: string;
-  distance?: string;
-  duration?: string;
-  description: string;
-  sessionLoad?: string;
+interface TrainingDay {
+  id: string;
+  date: string;
+  training_session: string;
+  mileage_breakdown?: string;
+  pace_targets?: string;
+  estimated_distance_km?: number;
+  estimated_avg_pace_min_per_km?: string;
+  estimated_moving_time?: string;
+  
+  // Detailed fields
+  heart_rate_zones?: string;
   purpose?: string;
+  session_load?: string;
+  notes?: string;
+  what_to_eat_drink?: string;
+  additional_training?: string;
+  recovery_training?: string;
+  estimated_elevation_gain_m?: number;
+  estimated_avg_power_w?: number;
+  estimated_cadence_spm?: number;
+  estimated_calories?: number;
+  daily_nutrition_advice?: string;
+  detailed_fields_generated: boolean;
 }
 
 interface TrainingCalendarViewProps {
@@ -26,109 +43,70 @@ interface TrainingCalendarViewProps {
 
 const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: TrainingCalendarViewProps) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState<WorkoutDay | null>(null);
+  const [selectedDay, setSelectedDay] = useState<TrainingDay | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [dayDetails, setDayDetails] = useState<string | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [trainingDays, setTrainingDays] = useState<TrainingDay[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
-  // Parse training plan - support both old and new formats
-  const workoutDays = useMemo(() => {
-    if (!trainingPlan || typeof trainingPlan !== 'string' || !profile?.race_date) {
-      console.log('Missing training plan or race date');
-      return [];
-    }
-    
-    const days: WorkoutDay[] = [];
-    
-    // Check if it's the new pipe-delimited format or old format
-    if (trainingPlan.includes('|') && !trainingPlan.includes('===DAY_START===')) {
-      // New pipe-delimited format: DATE|DAY|TYPE|KM|MIN|LOAD|PURPOSE
-      const lines = trainingPlan.split('\n').filter(line => line.trim() && line.includes('|'));
-      
-      console.log('Found plan lines (pipe format):', lines.length);
-      
-      lines.forEach((line) => {
-        const parts = line.split('|').map(part => part.trim());
-        if (parts.length >= 7) {
-          const [dateStr, dayOfWeek, type, km, minutes, load, purpose] = parts;
-          
-          const sessionDate = new Date(dateStr);
-          if (isNaN(sessionDate.getTime())) return; // Skip invalid dates
-          
-          const session: WorkoutDay = {
-            date: sessionDate,
-            workout: type,
-            distance: km && km !== '0' ? `${km} km` : undefined,
-            duration: minutes && minutes !== '0' ? `${minutes} min` : undefined,
-            sessionLoad: load,
-            purpose: purpose,
-            description: `**Session Load:** ${load}\n**Purpose:** ${purpose}\n**Day:** ${dayOfWeek}`
-          };
-          
-          days.push(session);
+  // Load training days from database
+  useEffect(() => {
+    const loadTrainingDays = async () => {
+      try {
+        // Get the current training plan ID
+        const { data: plans, error: planError } = await supabase
+          .from('training_plans')
+          .select('id')
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (planError) {
+          console.error('Error fetching training plan:', planError);
+          return;
         }
-      });
-    } else {
-      // Old delimited format for backward compatibility
-      const planStartDate_date = new Date(planStartDate);
-      const dayBlocks = trainingPlan.split('===DAY_START===').slice(1);
-      
-      console.log('Found day blocks (old format):', dayBlocks.length);
-      
-      dayBlocks.forEach((block, index) => {
-        const dayContent = block.split('===DAY_END===')[0];
-        if (!dayContent) return;
-        
-        const lines = dayContent.split('\n').map(line => line.trim()).filter(Boolean);
-        const session: Partial<WorkoutDay> = {};
-        let description = '';
-        
-        lines.forEach(line => {
-          if (line.includes(': ')) {
-            const [field, value] = line.split(': ', 2);
-            
-            switch (field) {
-              case 'training_session':
-                session.workout = value;
-                break;
-              case 'estimated_distance_km':
-                const distanceNum = parseFloat(value);
-                if (!isNaN(distanceNum) && distanceNum > 0) {
-                  session.distance = distanceNum + ' km';
-                }
-                break;
-              case 'estimated_moving_time':
-                session.duration = value;
-                break;
-              case 'session_load':
-                (session as any).sessionLoad = value;
-                break;
-              case 'purpose':
-                (session as any).purpose = value;
-                break;
-              default:
-                const formattedField = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                description += `**${formattedField}:** ${value}\n`;
-            }
-          }
+
+        if (!plans || plans.length === 0) {
+          console.log('No training plans found');
+          return;
+        }
+
+        const planId = plans[0].id;
+
+        // Load training days for this plan
+        const { data: days, error: daysError } = await supabase
+          .from('training_days')
+          .select('*')
+          .eq('training_plan_id', planId)
+          .order('date', { ascending: true });
+
+        if (daysError) {
+          console.error('Error fetching training days:', daysError);
+          toast({
+            title: "Error",
+            description: "Failed to load training calendar. Please try again.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        setTrainingDays(days || []);
+        console.log('Loaded training days:', days?.length || 0);
+      } catch (error) {
+        console.error('Error loading training days:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load training calendar. Please try again.",
+          variant: "destructive"
         });
-        
-        const sessionDate = new Date(planStartDate_date);
-        sessionDate.setDate(sessionDate.getDate() + index);
-        
-        if (session.workout) {
-          session.date = sessionDate;
-          session.description = description.trim();
-          days.push(session as WorkoutDay);
-        }
-      });
-    }
-    
-    console.log('Parsed workout sessions:', days.length);
-    console.log('Sample sessions:', days.slice(0, 3));
-    
-    return days;
-  }, [trainingPlan, profile?.race_date, planStartDate]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadTrainingDays();
+  }, [toast]);
 
   // Get days for current month view
   const monthStart = startOfMonth(currentMonth);
@@ -137,7 +115,8 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
 
   // Get workout for specific day
   const getWorkoutForDay = (date: Date) => {
-    return workoutDays.find(workout => isSameDay(workout.date, date));
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return trainingDays.find(day => day.date === dateStr);
   };
 
   const getWorkoutTypeColor = (workoutType: string) => {
@@ -150,45 +129,71 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
     return 'bg-purple-100 text-purple-800 border-purple-200';
   };
 
-  const handleDayClick = async (workout: WorkoutDay) => {
-    setSelectedDay(workout);
+  const handleDayClick = async (trainingDay: TrainingDay) => {
+    setSelectedDay(trainingDay);
     setIsDialogOpen(true);
-    setDayDetails(null);
+    
+    // If detailed fields are already generated, don't reload
+    if (trainingDay.detailed_fields_generated) {
+      return;
+    }
+
     setIsLoadingDetails(true);
 
     try {
-      // Prepare day data for the AI prompt
-      const dayData = {
-        specific_date: format(workout.date, 'yyyy-MM-dd'),
-        training_session: workout.workout,
-        estimated_distance_km: parseFloat(workout.distance?.replace(' km', '') || '0'),
-        estimated_duration_min: workout.duration ? 
-          (workout.duration.includes(':') ? 
-            parseInt(workout.duration.split(':')[0]) * 60 + parseInt(workout.duration.split(':')[1]) 
-            : parseInt(workout.duration.replace(' min', ''))) 
-          : 0,
-        session_load: (workout as any).sessionLoad || 'Medium',
-        purpose: (workout as any).purpose || 'Training session'
-      };
-
+      // Call the enhanced generate-day-details function
       const { data, error } = await supabase.functions.invoke('generate-day-details', {
         body: {
+          trainingDayId: trainingDay.id,
           profileData: profile,
-          dayData: dayData
+          dayData: {
+            specific_date: trainingDay.date,
+            training_session: trainingDay.training_session,
+            estimated_distance_km: trainingDay.estimated_distance_km || 0,
+            estimated_duration_min: trainingDay.estimated_moving_time ? 
+              (trainingDay.estimated_moving_time.includes(':') ? 
+                parseInt(trainingDay.estimated_moving_time.split(':')[0]) * 60 + parseInt(trainingDay.estimated_moving_time.split(':')[1]) 
+                : 0) : 0,
+            session_load: trainingDay.session_load || 'Medium',
+            purpose: trainingDay.purpose || 'Training session',
+            mileage_breakdown: trainingDay.mileage_breakdown,
+            pace_targets: trainingDay.pace_targets
+          }
         }
       });
 
       if (error) {
         console.error('Error generating day details:', error);
-        setDayDetails('Error loading detailed information. Please try again.');
-      } else if (data?.dayDetails) {
-        setDayDetails(data.dayDetails);
-      } else {
-        setDayDetails('No detailed information available for this day.');
+        toast({
+          title: "Error",
+          description: "Failed to load detailed training information. Please try again.",
+          variant: "destructive"
+        });
+      } else if (data?.success) {
+        // Update the local state with the enhanced data
+        setTrainingDays(prev => 
+          prev.map(day => 
+            day.id === trainingDay.id 
+              ? { ...day, ...data.updatedTrainingDay, detailed_fields_generated: true }
+              : day
+          )
+        );
+        
+        // Update selected day as well
+        setSelectedDay(prev => prev ? { ...prev, ...data.updatedTrainingDay, detailed_fields_generated: true } : null);
+        
+        toast({
+          title: "Success",
+          description: "Detailed training information loaded successfully!",
+        });
       }
     } catch (error) {
       console.error('Error calling day details function:', error);
-      setDayDetails('Error loading detailed information. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to load detailed training information. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoadingDetails(false);
     }
@@ -201,6 +206,15 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
   const goToNextMonth = () => {
     setCurrentMonth(prev => addMonths(prev, 1));
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin mr-2" />
+        <span>Loading training calendar...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -228,7 +242,7 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
               <div className="flex items-center gap-2">
                 <Target className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">
-                  <strong>Total Workouts:</strong> {workoutDays.length}
+                  <strong>Total Workouts:</strong> {trainingDays.length}
                 </span>
               </div>
             </div>
@@ -300,14 +314,14 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
                     <div className="space-y-1">
                       <Badge 
                         variant="secondary" 
-                        className={`text-xs p-1 h-auto leading-tight ${getWorkoutTypeColor(workout.workout)}`}
+                        className={`text-xs p-1 h-auto leading-tight ${getWorkoutTypeColor(workout.training_session)}`}
                       >
-                        {workout.workout}
+                        {workout.training_session}
                       </Badge>
                       
-                      {workout.distance && workout.distance !== '0 km' && (
+                      {workout.estimated_distance_km && workout.estimated_distance_km > 0 && (
                         <div className="text-xs text-muted-foreground">
-                          {workout.distance}
+                          {workout.estimated_distance_km} km
                         </div>
                       )}
                     </div>
@@ -325,7 +339,7 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              {selectedDay && format(selectedDay.date, 'EEEE, MMMM d, yyyy')}
+              {selectedDay && format(new Date(selectedDay.date), 'EEEE, MMMM d, yyyy')}
             </DialogTitle>
           </DialogHeader>
           
@@ -333,17 +347,21 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
             <ScrollArea className="max-h-[60vh] pr-4">
               <div className="space-y-6">
                 <div className="text-center">
-                  <h3 className="text-lg font-semibold">Day {workoutDays.findIndex(w => isSameDay(w.date, selectedDay.date)) + 1}</h3>
-                  <p className="text-sm text-muted-foreground">{format(selectedDay.date, 'EEEE')}</p>
+                  <h3 className="text-lg font-semibold">
+                    Day {trainingDays.findIndex(d => d.id === selectedDay.id) + 1}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {format(new Date(selectedDay.date), 'EEEE')}
+                  </p>
                 </div>
                 
                 <div className="space-y-4">
                   <div className="flex items-center justify-center">
                     <Badge 
                       variant="secondary" 
-                      className={`text-sm px-3 py-1 ${getWorkoutTypeColor(selectedDay.workout)}`}
+                      className={`text-sm px-3 py-1 ${getWorkoutTypeColor(selectedDay.training_session)}`}
                     >
-                      {selectedDay.workout}
+                      {selectedDay.training_session}
                     </Badge>
                   </div>
                   
@@ -353,7 +371,9 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
                         <MapPin className="h-4 w-4 text-muted-foreground" />
                         <span className="text-xs font-medium">Distance</span>
                       </div>
-                      <span className="text-sm font-semibold">{selectedDay.distance || '0 km'}</span>
+                      <span className="text-sm font-semibold">
+                        {selectedDay.estimated_distance_km ? `${selectedDay.estimated_distance_km} km` : '0 km'}
+                      </span>
                     </div>
                     
                     <div className="p-3 bg-secondary rounded-lg">
@@ -361,32 +381,98 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
                         <Clock className="h-4 w-4 text-muted-foreground" />
                         <span className="text-xs font-medium">Duration</span>
                       </div>
-                      <span className="text-sm font-semibold">{selectedDay.duration || '0 min'}</span>
+                      <span className="text-sm font-semibold">
+                        {selectedDay.estimated_moving_time || '0:00'}
+                      </span>
                     </div>
                   </div>
                 </div>
                 
+                {/* Basic workout information */}
                 <div className="p-4 bg-muted rounded-lg">
                   <h4 className="font-semibold mb-2 flex items-center gap-2">
                     <Target className="h-4 w-4" />
-                    Workout Details
+                    Workout Overview
                   </h4>
                   
-                  {isLoadingDetails ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                      <span className="text-sm">Generating detailed training plan...</span>
-                    </div>
-                  ) : dayDetails ? (
-                    <div className="text-sm leading-relaxed whitespace-pre-wrap">{dayDetails}</div>
-                  ) : (
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedDay.description}</p>
-                  )}
+                  <div className="space-y-2 text-sm">
+                    {selectedDay.mileage_breakdown && (
+                      <div><strong>Structure:</strong> {selectedDay.mileage_breakdown}</div>
+                    )}
+                    {selectedDay.pace_targets && (
+                      <div><strong>Pace Targets:</strong> {selectedDay.pace_targets}</div>
+                    )}
+                    {selectedDay.session_load && (
+                      <div><strong>Session Load:</strong> {selectedDay.session_load}</div>
+                    )}
+                    {selectedDay.purpose && (
+                      <div><strong>Purpose:</strong> {selectedDay.purpose}</div>
+                    )}
+                  </div>
                 </div>
                 
-                {!isLoadingDetails && !dayDetails && (
-                  <div className="text-xs text-muted-foreground text-center">
-                    <p>Click to load detailed training instructions for this day.</p>
+                {/* Detailed information */}
+                {isLoadingDetails ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    <span className="text-sm">Generating detailed training plan...</span>
+                  </div>
+                ) : selectedDay.detailed_fields_generated ? (
+                  <div className="space-y-4">
+                    {selectedDay.heart_rate_zones && (
+                      <div className="p-4 bg-muted rounded-lg">
+                        <h4 className="font-semibold mb-2">Heart Rate Zones</h4>
+                        <p className="text-sm">{selectedDay.heart_rate_zones}</p>
+                      </div>
+                    )}
+                    
+                    {selectedDay.notes && (
+                      <div className="p-4 bg-muted rounded-lg">
+                        <h4 className="font-semibold mb-2">Training Notes</h4>
+                        <p className="text-sm whitespace-pre-wrap">{selectedDay.notes}</p>
+                      </div>
+                    )}
+                    
+                    {selectedDay.what_to_eat_drink && (
+                      <div className="p-4 bg-muted rounded-lg">
+                        <h4 className="font-semibold mb-2">Nutrition & Hydration</h4>
+                        <p className="text-sm whitespace-pre-wrap">{selectedDay.what_to_eat_drink}</p>
+                      </div>
+                    )}
+                    
+                    {selectedDay.additional_training && (
+                      <div className="p-4 bg-muted rounded-lg">
+                        <h4 className="font-semibold mb-2">Additional Training</h4>
+                        <p className="text-sm whitespace-pre-wrap">{selectedDay.additional_training}</p>
+                      </div>
+                    )}
+                    
+                    {selectedDay.recovery_training && (
+                      <div className="p-4 bg-muted rounded-lg">
+                        <h4 className="font-semibold mb-2">Recovery & Mobility</h4>
+                        <p className="text-sm whitespace-pre-wrap">{selectedDay.recovery_training}</p>
+                      </div>
+                    )}
+                    
+                    {selectedDay.daily_nutrition_advice && (
+                      <div className="p-4 bg-muted rounded-lg">
+                        <h4 className="font-semibold mb-2">Daily Nutrition</h4>
+                        <p className="text-sm whitespace-pre-wrap">{selectedDay.daily_nutrition_advice}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-muted rounded-lg text-center">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Click to load detailed training instructions including heart rate zones, nutrition advice, and recovery recommendations.
+                    </p>
+                    <Button 
+                      onClick={() => handleDayClick(selectedDay)}
+                      size="sm"
+                      disabled={isLoadingDetails}
+                    >
+                      Load Detailed Plan
+                    </Button>
                   </div>
                 )}
               </div>

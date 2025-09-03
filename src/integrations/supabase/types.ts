@@ -107,6 +107,98 @@ export type Database = {
         }
         Relationships: []
       }
+      training_days: {
+        Row: {
+          additional_training: string | null
+          created_at: string
+          daily_nutrition_advice: string | null
+          date: string
+          detailed_fields_generated: boolean | null
+          estimated_avg_pace_min_per_km: string | null
+          estimated_avg_power_w: number | null
+          estimated_cadence_spm: number | null
+          estimated_calories: number | null
+          estimated_distance_km: number | null
+          estimated_elevation_gain_m: number | null
+          estimated_moving_time: string | null
+          heart_rate_zones: string | null
+          id: string
+          mileage_breakdown: string | null
+          notes: string | null
+          pace_targets: string | null
+          purpose: string | null
+          recovery_training: string | null
+          session_load: string | null
+          training_plan_id: string
+          training_session: string
+          updated_at: string
+          user_id: string
+          what_to_eat_drink: string | null
+        }
+        Insert: {
+          additional_training?: string | null
+          created_at?: string
+          daily_nutrition_advice?: string | null
+          date: string
+          detailed_fields_generated?: boolean | null
+          estimated_avg_pace_min_per_km?: string | null
+          estimated_avg_power_w?: number | null
+          estimated_cadence_spm?: number | null
+          estimated_calories?: number | null
+          estimated_distance_km?: number | null
+          estimated_elevation_gain_m?: number | null
+          estimated_moving_time?: string | null
+          heart_rate_zones?: string | null
+          id?: string
+          mileage_breakdown?: string | null
+          notes?: string | null
+          pace_targets?: string | null
+          purpose?: string | null
+          recovery_training?: string | null
+          session_load?: string | null
+          training_plan_id: string
+          training_session: string
+          updated_at?: string
+          user_id: string
+          what_to_eat_drink?: string | null
+        }
+        Update: {
+          additional_training?: string | null
+          created_at?: string
+          daily_nutrition_advice?: string | null
+          date?: string
+          detailed_fields_generated?: boolean | null
+          estimated_avg_pace_min_per_km?: string | null
+          estimated_avg_power_w?: number | null
+          estimated_cadence_spm?: number | null
+          estimated_calories?: number | null
+          estimated_distance_km?: number | null
+          estimated_elevation_gain_m?: number | null
+          estimated_moving_time?: string | null
+          heart_rate_zones?: string | null
+          id?: string
+          mileage_breakdown?: string | null
+          notes?: string | null
+          pace_targets?: string | null
+          purpose?: string | null
+          recovery_training?: string | null
+          session_load?: string | null
+          training_plan_id?: string
+          training_session?: string
+          updated_at?: string
+          user_id?: string
+          what_to_eat_drink?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_days_training_plan_id_fkey"
+            columns: ["training_plan_id"]
+            isOneToOne: false
+            referencedRelation: "training_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_plans: {
         Row: {
           created_at: string

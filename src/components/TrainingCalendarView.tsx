@@ -27,8 +27,18 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
 
   // Parse training plan to extract daily workouts
   const workoutDays = useMemo(() => {
+    if (!trainingPlan || typeof trainingPlan !== 'string') {
+      console.log('Training plan is invalid:', typeof trainingPlan, trainingPlan?.length);
+      return [];
+    }
+    
+    console.log('Parsing training plan, length:', trainingPlan.length);
+    console.log('First 500 characters:', trainingPlan.substring(0, 500));
+    
     const days: WorkoutDay[] = [];
     const lines = trainingPlan.split('\n');
+    
+    console.log('Total lines to process:', lines.length);
     
     let currentDay: Partial<WorkoutDay> = {};
     let collectingDescription = false;

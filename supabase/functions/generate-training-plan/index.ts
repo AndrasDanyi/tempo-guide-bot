@@ -11,6 +11,72 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
+// Function to parse text format into JSON structure
+function parseTextToJson(textPlan: string) {
+  const lines = textPlan.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  const days = [];
+  let currentDay: any = {};
+
+  for (const line of lines) {
+    if (line.startsWith('DATE:')) {
+      // If we have a current day, save it
+      if (currentDay.date) {
+        days.push(currentDay);
+      }
+      // Start new day
+      currentDay = {
+        date: line.replace('DATE:', '').trim(),
+        training_session: '',
+        mileage_breakdown: '',
+        pace_targets: '',
+        heart_rate_zones: '',
+        purpose: '',
+        session_load: 'Medium',
+        notes: '',
+        what_to_eat_drink: '',
+        additional_training: '',
+        recovery_training: '',
+        estimated_distance_km: 0,
+        estimated_avg_pace_min_per_km: '0:00',
+        estimated_moving_time: '0:00',
+        estimated_elevation_gain_m: 0,
+        estimated_avg_power_w: 0,
+        estimated_cadence_spm: 0,
+        estimated_calories: 0,
+        daily_nutrition_advice: ''
+      };
+    } else if (line.startsWith('SESSION:')) {
+      currentDay.training_session = line.replace('SESSION:', '').trim();
+      if (currentDay.training_session.toLowerCase().includes('rest')) {
+        currentDay.session_load = 'Rest';
+      }
+    } else if (line.startsWith('DISTANCE:')) {
+      const distance = line.replace('DISTANCE:', '').trim();
+      if (distance.toLowerCase() !== 'rest' && distance !== 'N/A') {
+        const distanceNum = parseFloat(distance.replace('km', '').trim());
+        if (!isNaN(distanceNum)) {
+          currentDay.estimated_distance_km = distanceNum;
+          currentDay.estimated_calories = Math.round(distanceNum * 70); // Rough estimate
+        }
+      }
+      currentDay.mileage_breakdown = distance;
+    } else if (line.startsWith('PACE:')) {
+      currentDay.pace_targets = line.replace('PACE:', '').trim();
+      currentDay.estimated_avg_pace_min_per_km = currentDay.pace_targets;
+    } else if (line.startsWith('NOTES:')) {
+      currentDay.notes = line.replace('NOTES:', '').trim();
+      currentDay.purpose = currentDay.notes;
+    }
+  }
+
+  // Don't forget the last day
+  if (currentDay.date) {
+    days.push(currentDay);
+  }
+
+  return days;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -68,51 +134,22 @@ or builds a safe and progressive running base if they do not have a specific rac
 ### REQUIREMENTS
 - Plan duration: From ${today.toISOString().split('T')[0]} until ${profileData.race_date}.
 - Sessions per week: ${profileData.days_per_week || 5}.
-- Include:
-  - Specific daily run type (easy, tempo, intervals, long run, rest)
-  - Distance OR duration target (whichever is most appropriate for user level)
-  - Pace or HR zone target
-  - Purpose of the session (why we do it)
-  - Session load (Rest/Low/Medium/High)
-  - Notes for the runner (form cues, breathing, pacing tips)
-  - Nutrition & fueling notes for key sessions
-  - Recovery suggestions (foam rolling, yoga, mobility)
-  - Strength/mobility add-ons (if relevant)
 - Build progressive overload safely, peak 2–3 weeks before race if training for an event, 
   and taper appropriately.
 - For beginners, start with run/walk intervals and build gradually.
 - Avoid sudden mileage spikes, respect injury history.
 
 ### OUTPUT FORMAT
-Return a **JSON array** with one object per day from start date to race date (or plan end), including rest days.
+Create a detailed day-by-day training plan in simple text format. For each day, use this structure:
 
-Use this exact structure, filling in realistic values based on the runner's profile (examples are just for format illustration — do not output them literally):
+DATE: YYYY-MM-DD
+SESSION: [Name of session, e.g. 'Tempo Run', 'Long Run', 'Rest Day']
+DISTANCE: [Distance in km or 'Rest' for rest days]
+PACE: [Target pace or 'N/A' for rest days]
+NOTES: [Brief notes about the session purpose and any tips]
 
-[
-  {
-    "date": "YYYY-MM-DD", 
-    "training_session": "Name of session, e.g. 'Tempo Run' or 'Long Run'",
-    "mileage_breakdown": "Structured breakdown of the session (warm-up, intervals/steady run, cooldown, etc.)",
-    "pace_targets": "Pace or HR zone targets for each part of the run",
-    "heart_rate_zones": "Which HR zones apply to the session (Z1-Z5)",
-    "purpose": "Why this session is included (e.g. aerobic endurance, threshold, recovery)",
-    "session_load": "Rest/Low/Medium/High",
-    "notes": "Form tips, breathing focus, drills if needed",
-    "what_to_eat_drink": "Guidance on pre/during fueling and hydration for this session",
-    "additional_training": "Strength/mobility add-ons or leave empty if none",
-    "recovery_training": "Post-run recovery suggestions (foam rolling, mobility, etc.)",
-    "estimated_distance_km": 0,
-    "estimated_avg_pace_min_per_km": "0:00",
-    "estimated_moving_time": "0:00",
-    "estimated_elevation_gain_m": 0,
-    "estimated_avg_power_w": 0,
-    "estimated_cadence_spm": 0,
-    "estimated_calories": 0,
-    "daily_nutrition_advice": "Total calorie target and example meal/snack suggestions"
-  }
-]
-
-Return **valid JSON only**, with no extra text, markdown, or explanations.`;
+Continue this format for every single day from start date to race date. Include rest days.
+Be consistent with the format - use exactly "DATE:", "SESSION:", "DISTANCE:", "PACE:", "NOTES:" labels.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -125,7 +162,7 @@ Return **valid JSON only**, with no extra text, markdown, or explanations.`;
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert running coach who creates detailed, personalized training plans. You must respond with valid JSON only, following the exact format requested in the user prompt. Do not include any explanatory text, markdown, or additional content - only pure JSON.' 
+            content: 'You are an expert running coach. Follow the exact text format requested. Be consistent with the labels and structure.' 
           },
           { role: 'user', content: prompt }
         ],
@@ -141,7 +178,6 @@ Return **valid JSON only**, with no extra text, markdown, or explanations.`;
 
     const data = await response.json();
     console.log('OpenAI response received');
-    console.log('Full OpenAI response:', JSON.stringify(data, null, 2));
     
     // Log token usage
     if (data.usage) {
@@ -153,30 +189,14 @@ Return **valid JSON only**, with no extra text, markdown, or explanations.`;
     const trainingPlanText = data.choices[0].message.content;
     console.log('Training plan generated successfully');
     console.log('Plan length:', trainingPlanText?.length || 0);
-    console.log('Plan exists:', !!trainingPlanText);
     
-    if (trainingPlanText) {
-      console.log('Plan preview (first 500 chars):', trainingPlanText.substring(0, 500));
-      console.log('Plan preview (last 200 chars):', trainingPlanText.slice(-200));
-    } else {
-      console.log('ERROR: No training plan text generated!');
-      console.log('Response choices:', data.choices);
-    }
-
-    // Validate that we have content before saving
     if (!trainingPlanText || trainingPlanText.trim().length === 0) {
       throw new Error('OpenAI returned empty training plan content');
     }
 
-    // Parse JSON and save the training plan to the database
-    let parsedPlan;
-    try {
-      parsedPlan = JSON.parse(trainingPlanText);
-      console.log('Successfully parsed JSON plan with', parsedPlan.length, 'days');
-    } catch (parseError) {
-      console.error('Failed to parse JSON plan:', parseError);
-      throw new Error('OpenAI returned invalid JSON format');
-    }
+    // Parse the text format into JSON structure
+    const parsedPlan = parseTextToJson(trainingPlanText);
+    console.log('Successfully parsed text plan into JSON with', parsedPlan.length, 'days');
 
     const { data: savedPlan, error: saveError } = await supabase
       .from('training_plans')

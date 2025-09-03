@@ -43,43 +43,24 @@ serve(async (req) => {
     const raceDate = new Date(profileData.race_date);
     const daysDifference = Math.ceil((raceDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
-    const prompt = `You are an expert running coach who creates realistic, progressive training plans for runners of all levels, from couch-to-5K beginners to ultramarathon athletes.
-Your job is to generate a high-level day-by-day overview plan based on the runner's profile.
+    const prompt = `Generate a training plan overview. Be concise and direct.
 
-RUNNER PROFILE
-• Goal: ${profileData.goal || 'Not specified'}
-• Race date: ${profileData.race_date}
-• Age: ${profileData.age || 'Not provided'}
-• Gender: ${profileData.gender || 'Not specified'}
-• Height: ${profileData.height || 'Not specified'}
-• Training history: ${profileData.experience_years || 'Not specified'} years
-• Current weekly mileage: ${profileData.current_weekly_mileage || 'Not specified'}
-• Longest comfortable run: ${profileData.longest_run_km || 'Not specified'} km
-• Past injuries: ${profileData.injury_notes || 'None specified'}
-• Strength training habits: ${profileData.strength_notes || 'Not specified'}
-• Elevation preference/terrain: ${profileData.elevation_context || 'Not specified'}
-• Days available per week: ${profileData.days_per_week || 5}
-• Further notes: ${profileData.further_notes || 'None'}
+RUNNER: ${profileData.age || 25} years old, ${profileData.experience_years || 1} years experience
+GOAL: ${profileData.race_distance_km || 'Marathon'} km race on ${profileData.race_date}
+WEEKLY MILEAGE: ${profileData.current_weekly_mileage || '20'} km/week
+DAYS PER WEEK: ${profileData.days_per_week || 5} days
 
-OUTPUT REQUIREMENTS
-• Cover every single day from today until race day.
-• Include rest days.
-• Build mileage progressively, peak 2–3 weeks before race day, then taper.
-• If there is short preparation time (<6 weeks), prioritize key workouts and minimize risk.
-• Avoid sudden mileage spikes if user has history of injuries.
-
-OUTPUT FORMAT
-For each day, output exactly this format:
+OUTPUT: For each day from today (${today.toISOString().split('T')[0]}) to race day, return exactly this format:
 
 Date (YYYY-MM-DD)
-Day of Week
-Training Session (Rest, Easy Run, Long Run, Tempo, Intervals)
-Estimated Distance (km)
-Estimated Duration (minutes)
-Session Load (Low / Medium / High)
-Purpose (short, 1 sentence)
+Day of Week  
+Training Session (Rest/Easy Run/Long Run/Tempo/Intervals)
+Distance (km)
+Duration (minutes)  
+Load (Low/Medium/High)
+Purpose (1 sentence)
 
-Return only the overview fields — no detailed pacing, nutrition, or recovery instructions yet.`;
+Keep it simple - just the overview data, no extra text.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -96,7 +77,7 @@ Return only the overview fields — no detailed pacing, nutrition, or recovery i
           },
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 15000,
+        max_completion_tokens: 8000,
       }),
     });
 

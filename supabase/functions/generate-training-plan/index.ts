@@ -52,17 +52,28 @@ Height: ${profileData.height} cm
 Training History: ${profileData.training_history || 'No specific history provided'}
 Injuries: ${profileData.injuries || 'None reported'}
 
-Create a structured training plan from today (${today.toISOString().split('T')[0]}) until race day. 
+Create a day-by-day training plan from today (${today.toISOString().split('T')[0]}) until race day (${profileData.race_date}).
 
-Please provide:
-1. Training overview and philosophy
-2. Weekly structure and progression
-3. Specific workout types and pacing guidelines
-4. Weekly breakdown with recommended workouts
-5. Tapering strategy for race preparation
-6. Injury prevention tips
+Format your response as follows:
+TRAINING PLAN OVERVIEW
+[Brief overview of training philosophy and approach]
 
-Write this as a comprehensive text guide that the runner can follow. Be specific about pacing, distances, and progression.`;
+WEEKLY STRUCTURE
+[General weekly training structure and progression strategy]
+
+DAY-BY-DAY SCHEDULE
+For each day from today until race day, provide:
+- Date (YYYY-MM-DD format)
+- Day of week
+- Workout type (Rest, Easy Run, Tempo Run, Long Run, Intervals, etc.)
+- Distance (if applicable)
+- Duration
+- Detailed description with pacing guidelines
+
+ADDITIONAL GUIDANCE
+[Include injury prevention tips, nutrition advice, and tapering strategy]
+
+Be specific about pacing, distances, and progression. Make it comprehensive and easy to follow day by day.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

@@ -111,7 +111,8 @@ const Index = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2">Loading...</h2>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold mb-2">Loading...</h2>
           <p className="text-muted-foreground">Getting your data ready</p>
         </div>
       </div>
@@ -126,11 +127,11 @@ const Index = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center max-w-md">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <h2 className="text-2xl font-semibold mb-2">Generating Your Training Plan</h2>
-          <p className="text-muted-foreground">
-            Our AI coach is analyzing your profile and creating a personalized training plan. 
-            This may take a minute...
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-6"></div>
+          <h2 className="text-2xl font-semibold mb-4">Generating Your Training Plan</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            Our AI coach is analyzing your profile and creating a personalized day-by-day training plan. 
+            This may take up to 2 minutes...
           </p>
         </div>
       </div>

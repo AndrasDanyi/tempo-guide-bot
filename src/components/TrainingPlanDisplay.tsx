@@ -7,52 +7,90 @@ interface TrainingPlanDisplayProps {
 }
 
 const TrainingPlanDisplay = ({ trainingPlan, profile }: TrainingPlanDisplayProps) => {
-  // Split the training plan into sections for better formatting
   const formatTrainingPlan = (text: string) => {
     const lines = text.split('\n');
     const formattedLines: JSX.Element[] = [];
+    let currentSection = '';
     
     lines.forEach((line, index) => {
       const trimmedLine = line.trim();
       
       if (trimmedLine === '') {
-        formattedLines.push(<br key={index} />);
-      } else if (trimmedLine.match(/^\d+\./)) {
-        // Numbered sections
+        formattedLines.push(<div key={index} className="h-2" />);
+        return;
+      }
+
+      // Check for major section headers
+      if (trimmedLine.match(/^(TRAINING PLAN OVERVIEW|WEEKLY STRUCTURE|DAY-BY-DAY SCHEDULE|ADDITIONAL GUIDANCE)$/i)) {
+        currentSection = trimmedLine.toUpperCase();
         formattedLines.push(
-          <h3 key={index} className="text-lg font-semibold mt-6 mb-3 text-primary">
+          <h2 key={index} className="text-xl font-bold mt-8 mb-4 text-primary border-b border-border pb-2">
+            {trimmedLine}
+          </h2>
+        );
+        return;
+      }
+
+      // Day entries (look for date patterns)
+      if (trimmedLine.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const [datePart, ...restParts] = trimmedLine.split(' - ');
+        const date = new Date(datePart);
+        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+        const formattedDate = date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric' 
+        });
+        
+        formattedLines.push(
+          <div key={index} className="bg-secondary/50 rounded-lg p-4 mb-3 border border-border">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold text-primary">
+                {dayOfWeek}, {formattedDate}
+              </h4>
+              <span className="text-xs text-muted-foreground">{datePart}</span>
+            </div>
+            <p className="text-sm">{restParts.join(' - ')}</p>
+          </div>
+        );
+        return;
+      }
+
+      // Week headers
+      if (trimmedLine.match(/^Week \d+/i)) {
+        formattedLines.push(
+          <h3 key={index} className="text-lg font-semibold mt-6 mb-3 text-secondary-foreground bg-secondary p-3 rounded">
             {trimmedLine}
           </h3>
         );
-      } else if (trimmedLine.match(/^Week \d+/i)) {
-        // Week headers
-        formattedLines.push(
-          <h4 key={index} className="text-base font-medium mt-4 mb-2 text-secondary-foreground bg-secondary p-2 rounded">
-            {trimmedLine}
-          </h4>
-        );
-      } else if (trimmedLine.match(/^[A-Z][^:]*:$/)) {
-        // Section headers ending with colon
+        return;
+      }
+
+      // Subsection headers (ending with colon)
+      if (trimmedLine.match(/^[A-Z][^:]*:$/)) {
         formattedLines.push(
           <h4 key={index} className="text-base font-medium mt-4 mb-2 text-primary">
             {trimmedLine}
           </h4>
         );
-      } else if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('• ')) {
-        // Bullet points
+        return;
+      }
+
+      // Bullet points
+      if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('• ')) {
         formattedLines.push(
-          <li key={index} className="ml-4 mb-1">
+          <li key={index} className="ml-6 mb-1 list-disc">
             {trimmedLine.substring(2)}
           </li>
         );
-      } else {
-        // Regular paragraphs
-        formattedLines.push(
-          <p key={index} className="mb-2 leading-relaxed">
-            {trimmedLine}
-          </p>
-        );
+        return;
       }
+
+      // Regular paragraphs
+      formattedLines.push(
+        <p key={index} className="mb-2 leading-relaxed text-sm">
+          {trimmedLine}
+        </p>
+      );
     });
     
     return formattedLines;

@@ -11,6 +11,69 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
+// Background enhancement function
+async function startBackgroundEnhancement(planId: string, profileData: any, userId: string) {
+  console.log(`Starting background enhancement for plan ${planId}`);
+  
+  try {
+    // Parse the plan to count days
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: plan } = await supabase
+      .from('training_plans')
+      .select('plan_content')
+      .eq('id', planId)
+      .single();
+
+    if (!plan?.plan_content?.text) {
+      console.error('Could not fetch plan for background enhancement');
+      return;
+    }
+
+    const dayBlocks = plan.plan_content.text.split('===DAY_START===').slice(1);
+    console.log(`Found ${dayBlocks.length} days to enhance`);
+
+    // Enhance each day chronologically with delays
+    for (let dayIndex = 0; dayIndex < dayBlocks.length; dayIndex++) {
+      try {
+        // Wait between enhancements (30 seconds per day to spread load)
+        if (dayIndex > 0) {
+          await new Promise(resolve => setTimeout(resolve, 30000));
+        }
+
+        console.log(`Enhancing day ${dayIndex + 1}/${dayBlocks.length}`);
+
+        // Call the enhancement function
+        const enhanceResponse = await fetch(`${supabaseUrl}/functions/v1/enhance-training-plan`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            planId,
+            dayIndex,
+            profileData
+          }),
+        });
+
+        if (!enhanceResponse.ok) {
+          console.error(`Failed to enhance day ${dayIndex + 1}:`, await enhanceResponse.text());
+        } else {
+          console.log(`Successfully enhanced day ${dayIndex + 1}`);
+        }
+
+      } catch (error) {
+        console.error(`Error enhancing day ${dayIndex + 1}:`, error);
+      }
+    }
+
+    console.log(`Background enhancement completed for plan ${planId}`);
+
+  } catch (error) {
+    console.error('Background enhancement error:', error);
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -43,91 +106,49 @@ serve(async (req) => {
     const raceDate = new Date(profileData.race_date);
     const daysDifference = Math.ceil((raceDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
-    const prompt = `You are an expert running coach. Generate a **personalized, day-by-day training plan** for the runner, following all standard coaching principles (progressive overload, periodization, tapering, recovery, and injury prevention).
+    const prompt = `You are an expert running coach. Generate a **quick, essential training plan** with core fields only. This will be enhanced later with detailed fields.
 
-### USER PROFILE
-- Name: ${profileData.full_name || 'Not provided'}
-- Age: ${profileData.age || 'Not provided'}
-- Gender: ${profileData.gender || 'Not provided'}
-- Height: ${profileData.height || 'Not provided'}
-- Weight: ${profileData.weight_kg || 'Not provided'}
-- Running Experience: ${profileData.experience_years || 'Not specified'}
-- Current Weekly Mileage: ${profileData.current_weekly_mileage || 'Not specified'}
-- Longest Comfortable Run: ${profileData.longest_run_km || 'Not specified'}
-- Training History Summary: ${profileData.training_history || 'No specific history provided'}
-- Recent Race Performances: ${profileData.race_results || 'None provided'}
-- Past Injuries / Limitations: ${profileData.injuries || 'None reported'}
-- Strength Training Habits: ${profileData.strength_notes || 'Not specified'}
-- Typical Terrain / Elevation: ${profileData.elevation_context || 'flat'}
-- Goal Pace / Time: ${profileData.goal_pace_per_km || 'Not specified'}
-- Race Name / Distance / Date: ${profileData.race_name || 'Not specified'}, ${profileData.race_distance_km || 'Not specified'}, ${profileData.race_date}
-- Training Days per Week: ${profileData.days_per_week || 5}
-- Further Notes (free-form): ${profileData.further_notes || 'None provided'}
+### USER PROFILE  
+- Age: ${profileData.age || 'Not provided'} | Experience: ${profileData.experience_years || 'Not specified'} years
+- Current Weekly Mileage: ${profileData.current_weekly_mileage || 'Not specified'} | Race Date: ${profileData.race_date}
+- Race Distance: ${profileData.race_distance_km || 'Not specified'} km | Goal Pace: ${profileData.goal_pace_per_km || 'Not specified'}
+- Terrain: ${profileData.elevation_context || 'flat'} | Training Days/Week: ${profileData.days_per_week || 5}
 
-### TRAINING PRINCIPLES
-1. **Progressive Overload & Recovery**
-   - Increase weekly mileage by max 5–10% per week.  
-   - Include a recovery week every 4th week (-20% mileage).  
-   - Long runs build gradually (+2–3 km/week) and peak at 30–40% of weekly mileage.  
-2. **Periodization**
-   - Base Phase: Build aerobic foundation (if plan ≥10 weeks).  
-   - Build Phase: Add tempos/intervals 1–2x per week.  
-   - Peak Phase: Highest mileage 3 weeks before race.  
-   - Taper Phase: 
-     - Week -2: reduce mileage 20–30%  
-     - Week -1: reduce mileage 40–60%  
-     - Keep intensity but reduce volume.  
-     - Final long run 14 days before race.  
-3. **Short Plan Handling (≤8 weeks)**
-   - Skip base phase. Maintain current mileage and gradually sharpen key workouts.  
-   - Minimal mileage growth (≤5% per week).  
-   - Short taper (last 5–7 days).  
-4. **Beginner / Advanced Adjustments**
-   - Beginners (<20 km/week): build base before intervals.  
-   - Advanced (>40 km/week): include weekly intervals & tempo runs.  
-5. **Further Notes Integration**
-   - Review "Further Notes" for preferred training times, schedule/terrain constraints, cross-training, personal goals, or extra health considerations.  
-   - Adjust daily schedule or mileage accordingly, but prioritize safety.  
-6. **Missing Inputs Handling**
-   - If any required input is missing, assume safe, conservative defaults and document them in an "assumptions_made" summary.  
-   - Example: mileage not provided → assume 25 km/week; long run unknown → 10 km; flat terrain if unspecified.  
+### TRAINING PRINCIPLES (QUICK VERSION)
+1. **Progressive Overload**: Max 5-10% weekly mileage increase
+2. **Periodization**: Base → Build → Peak → Taper (adjust for ${daysDifference} days available)
+3. **Short Plans (≤8 weeks)**: Skip base, maintain mileage, sharpen workouts, short taper
+4. **Recovery**: Include recovery weeks and proper tapering
 
-### OUTPUT FORMAT
-CRITICAL: Wrap each training day with clear delimiters for easy parsing.
-
-For each day, use this EXACT format:
+### OUTPUT FORMAT - ESSENTIAL FIELDS ONLY
+Generate ONLY these core fields for each day (enhanced details will be added later):
 
 ===DAY_START===
 date: YYYY-MM-DD
-training_session: (e.g., Rest, Easy Run, Tempo, Long Run, Intervals)
-mileage_breakdown: (warm-up / main / cooldown in km or minutes)
-pace_targets: (per segment or range)
-heart_rate_zones: (Z1–Z5)
-purpose: (why the session exists)
+
+🏃‍♂️ WORKOUT OVERVIEW
+training_session: (Rest/Easy Run/Tempo/Long Run/Intervals)
+purpose: (brief why this session exists)
 session_load: (Low/Medium/High)
-notes: (technical focus, drills, warnings, adjustments per Further Notes)
-what_to_eat_drink: (pre/during/post fueling)
-additional_training: (strength, mobility, cross-training)
-recovery_training: (foam rolling, yoga, mobility flow)
+
+📝 TRAINING NOTES  
+notes: (key technical focus and adjustments)
+
+📈 ESTIMATED METRICS
 estimated_distance_km: (number only)
 estimated_avg_pace_min_per_km: (format: mm:ss)
 estimated_moving_time: (format: h:mm)
-estimated_elevation_gain_m: (number only)
-estimated_avg_power_w: (number only)
-estimated_cadence_spm: (number only)
-estimated_calories: (number only)
-daily_nutrition_advice: (carbs/protein target + 2 meal/snack suggestions)
 ===DAY_END===
 
 ### RULES
-- Cover every single day from start date to race day, including rest days.  
-- Make progression realistic, respect fatigue & injuries, include recovery weeks and proper tapering.  
-- If any assumptions were made due to missing inputs, include a short \`"assumptions_made"\` summary at the top.  
-- Short plans (<8 weeks) must prioritize safe progression and sharpening rather than a full base/build phase.  
-- Keep all sessions actionable and specific to the runner's profile, terrain, and goals.  
-- Only output the structured day-by-day plan; no extra explanations or text outside the plan.
+- Cover every day from ${today.toISOString().split('T')[0]} to ${profileData.race_date} (${daysDifference} days total)
+- Focus on workout progression and key training principles
+- Keep entries concise but actionable
+- This is a QUICK generation - detailed fields will be added later
+- Include rest days and recovery weeks
+- No extra explanations outside the structured plan
 
-Generate a plan from ${today.toISOString().split('T')[0]} until ${profileData.race_date}, covering every day (${daysDifference} days total).`;
+Generate the essential training plan framework now:`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -144,7 +165,7 @@ Generate a plan from ${today.toISOString().split('T')[0]} until ${profileData.ra
           },
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 100000,
+        max_completion_tokens: 15000,
       }),
     });
 
@@ -201,16 +222,20 @@ Generate a plan from ${today.toISOString().split('T')[0]} until ${profileData.ra
       throw new Error('Failed to save training plan to database');
     }
 
-    console.log('Training plan saved successfully');
+    console.log('Quick training plan saved successfully');
     console.log('Saved plan ID:', savedPlan.id);
     console.log('Saved plan content length:', savedPlan.plan_content?.text?.length || 0);
+
+    // Start background enhancement process
+    EdgeRuntime.waitUntil(startBackgroundEnhancement(savedPlan.id, profileData, user.id));
 
     return new Response(JSON.stringify({ 
       success: true, 
       trainingPlanText, 
       planId: savedPlan.id,
       tokenUsage: data.usage || null,
-      contentLength: trainingPlanText?.length || 0
+      contentLength: trainingPlanText?.length || 0,
+      enhancementStarted: true
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

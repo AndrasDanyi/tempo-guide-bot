@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
+import { useTrainingPlanUpdates } from '@/hooks/useTrainingPlanUpdates';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ProfileForm from '@/components/ProfileForm';
@@ -11,17 +12,21 @@ import TrainingPlanDisplay from '@/components/TrainingPlanDisplay';
 import TrainingCalendarView from '@/components/TrainingCalendarView';
 import OnboardingChatbot from '@/components/OnboardingChatbot';
 import EditProfileDialog from '@/components/EditProfileDialog';
-import { User, LogOut, Target, Calendar, FileText, MessageCircle, ClipboardList, Edit3 } from 'lucide-react';
+import { User, LogOut, Target, Calendar, FileText, MessageCircle, ClipboardList, Edit3, Clock, Loader2 } from 'lucide-react';
 
 const Index = () => {
   const { user, signOut, loading } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
   const [trainingPlan, setTrainingPlan] = useState<any>(null);
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [onboardingMode, setOnboardingMode] = useState<'chat' | 'form'>('chat');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  // Use the training plan updates hook
+  const { planUpdates, isUpdating, enhancementProgress } = useTrainingPlanUpdates(currentPlanId);
 
   useEffect(() => {
     if (user) {
@@ -30,6 +35,18 @@ const Index = () => {
       setLoadingData(false);
     }
   }, [user]);
+
+  // Update training plan when new updates arrive
+  useEffect(() => {
+    if (planUpdates?.updatedPlan && currentPlanId) {
+      setTrainingPlan({
+        ...trainingPlan,
+        id: currentPlanId,
+        plan_content: { text: planUpdates.updatedPlan }
+      });
+      console.log('Training plan updated via real-time subscription');
+    }
+  }, [planUpdates, currentPlanId]);
 
   const fetchUserData = async () => {
     if (!user) return;
@@ -56,6 +73,7 @@ const Index = () => {
 
         if (planData && !planError) {
           setTrainingPlan(planData);
+          setCurrentPlanId(planData.id);
           console.log('Training plan loaded:', planData.id);
         } else {
           console.log('No training plan found or error:', planError);
@@ -86,9 +104,10 @@ const Index = () => {
           id: data.planId,
           plan_content: { text: data.trainingPlanText },
         });
+        setCurrentPlanId(data.planId);
         toast({
           title: "Training plan generated!",
-          description: "Your personalized training plan is ready.",
+          description: "Detailed enhancements are being added in the background.",
         });
       } else {
         throw new Error(data.error || 'Failed to generate training plan');
@@ -240,13 +259,42 @@ const Index = () => {
               <p className="text-muted-foreground">
                 Goal: {profile.goal} • Race Date: {new Date(profile.race_date).toLocaleDateString()}
               </p>
+              {/* Enhancement Progress Indicator */}
+              {isUpdating && enhancementProgress && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">
+                      Enhancing your training plan...
+                    </span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-1000"
+                      style={{ width: `${enhancementProgress.percentage}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-blue-700">
+                    Enhanced {enhancementProgress.enhanced} of {enhancementProgress.total} training days ({enhancementProgress.percentage}%)
+                  </p>
+                </div>
+              )}
+
               <div className="mt-4 flex gap-2">
                 <Button 
                   onClick={() => generateTrainingPlan(profile)} 
                   variant="outline"
                   size="sm"
+                  disabled={isGenerating}
                 >
-                  Regenerate Training Plan
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    'Regenerate Training Plan'
+                  )}
                 </Button>
                 <Button 
                   onClick={() => setIsEditDialogOpen(true)} 

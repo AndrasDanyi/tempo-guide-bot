@@ -29,46 +29,79 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
     const days: WorkoutDay[] = [];
     const lines = trainingPlan.split('\n');
     
-    for (const line of lines) {
-      const trimmedLine = line.trim();
+    let currentDay: Partial<WorkoutDay> = {};
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
       
-      // Look for date patterns (YYYY-MM-DD)
-      const dateMatch = trimmedLine.match(/^(\d{4}-\d{2}-\d{2})\s*-?\s*(.*)/);
-      if (dateMatch) {
-        const [, dateStr, workoutInfo] = dateMatch;
-        const date = parseISO(dateStr);
-        
-        if (isValid(date)) {
-          // Parse workout info
-          const parts = workoutInfo.split(' - ');
-          const workout = parts[0] || 'Workout';
-          
-          // Extract distance and duration if available
-          let distance = '';
-          let duration = '';
-          let description = workoutInfo;
-          
-          const distanceMatch = workoutInfo.match(/(\d+(?:\.\d+)?)\s*(miles?|km|k)/i);
-          if (distanceMatch) {
-            distance = distanceMatch[0];
-          }
-          
-          const durationMatch = workoutInfo.match(/(\d+(?:\.\d+)?)\s*(min|minutes?|hour?s?|hr)/i);
-          if (durationMatch) {
-            duration = durationMatch[0];
-          }
-          
-          days.push({
-            date,
-            workout,
-            distance,
-            duration,
-            description
-          });
+      // Look for "Day X" entries
+      if (line.match(/^Day \d+$/)) {
+        // If we have a complete day, add it
+        if (currentDay.date && currentDay.workout) {
+          days.push(currentDay as WorkoutDay);
         }
+        currentDay = {}; // Reset for new day
+        continue;
+      }
+      
+      // Look for date entries
+      if (line.startsWith('Date: ')) {
+        const dateStr = line.replace('Date: ', '').trim();
+        const date = parseISO(dateStr);
+        if (isValid(date)) {
+          currentDay.date = date;
+        }
+        continue;
+      }
+      
+      // Look for workout type
+      if (line.startsWith('Workout type: ')) {
+        currentDay.workout = line.replace('Workout type: ', '').trim();
+        continue;
+      }
+      
+      // Look for distance
+      if (line.startsWith('Distance: ')) {
+        currentDay.distance = line.replace('Distance: ', '').trim();
+        continue;
+      }
+      
+      // Look for duration
+      if (line.startsWith('Duration: ')) {
+        currentDay.duration = line.replace('Duration: ', '').trim();
+        continue;
+      }
+      
+      // Look for detailed description
+      if (line.startsWith('Detailed description: ') || line.startsWith('Details: ')) {
+        let description = line.replace(/^(Detailed description: |Details: )/, '').trim();
+        
+        // Continue reading following lines that are part of the description
+        let nextIndex = i + 1;
+        while (nextIndex < lines.length) {
+          const nextLine = lines[nextIndex].trim();
+          
+          // Stop if we hit another field or day
+          if (nextLine.match(/^(Day \d+|Date: |Workout type: |Distance: |Duration: |Detailed description: |Details: |ADDITIONAL GUIDANCE|$)/)) {
+            break;
+          }
+          
+          description += ' ' + nextLine;
+          nextIndex++;
+        }
+        
+        currentDay.description = description;
+        i = nextIndex - 1; // Skip the lines we've already processed
+        continue;
       }
     }
     
+    // Don't forget the last day
+    if (currentDay.date && currentDay.workout) {
+      days.push(currentDay as WorkoutDay);
+    }
+    
+    console.log('Parsed workout days:', days.length);
     return days;
   }, [trainingPlan]);
 
@@ -186,17 +219,19 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
                   </div>
                   
                   {workout && (
-                    <Badge 
-                      variant="secondary" 
-                      className={`text-xs p-1 h-auto leading-tight ${getWorkoutTypeColor(workout.workout)}`}
-                    >
-                      {workout.workout.split(' ')[0]}
-                    </Badge>
-                  )}
-                  
-                  {workout?.distance && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {workout.distance}
+                    <div className="space-y-1">
+                      <Badge 
+                        variant="secondary" 
+                        className={`text-xs p-1 h-auto leading-tight ${getWorkoutTypeColor(workout.workout)}`}
+                      >
+                        {workout.workout}
+                      </Badge>
+                      
+                      {workout.distance && workout.distance !== '0 km' && (
+                        <div className="text-xs text-muted-foreground">
+                          {workout.distance}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -218,27 +253,38 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
           
           {selectedDay && (
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Badge 
-                  variant="secondary" 
-                  className={getWorkoutTypeColor(selectedDay.workout)}
-                >
-                  {selectedDay.workout}
-                </Badge>
+              <div className="text-center">
+                <h3 className="text-lg font-semibold">Day {workoutDays.findIndex(w => isSameDay(w.date, selectedDay.date)) + 1}</h3>
+                <p className="text-sm text-muted-foreground">{format(selectedDay.date, 'EEEE')}</p>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center justify-center">
+                  <Badge 
+                    variant="secondary" 
+                    className={`text-sm px-3 py-1 ${getWorkoutTypeColor(selectedDay.workout)}`}
+                  >
+                    {selectedDay.workout}
+                  </Badge>
+                </div>
                 
-                {selectedDay.distance && (
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{selectedDay.distance}</span>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div className="p-3 bg-secondary rounded-lg">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs font-medium">Distance</span>
+                    </div>
+                    <span className="text-sm font-semibold">{selectedDay.distance || '0 km'}</span>
                   </div>
-                )}
-                
-                {selectedDay.duration && (
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{selectedDay.duration}</span>
+                  
+                  <div className="p-3 bg-secondary rounded-lg">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs font-medium">Duration</span>
+                    </div>
+                    <span className="text-sm font-semibold">{selectedDay.duration || '0 min'}</span>
                   </div>
-                )}
+                </div>
               </div>
               
               <div className="p-4 bg-muted rounded-lg">

@@ -54,26 +54,42 @@ Injuries: ${profileData.injuries || 'None reported'}
 
 Create a day-by-day training plan from today (${today.toISOString().split('T')[0]}) until race day (${profileData.race_date}).
 
-Format your response as follows:
+CRITICAL: Format your response with EXACT daily entries as follows:
+
 TRAINING PLAN OVERVIEW
 [Brief overview of training philosophy and approach]
 
-WEEKLY STRUCTURE
-[General weekly training structure and progression strategy]
+DAILY SCHEDULE
 
-DAY-BY-DAY SCHEDULE
-For each day from today until race day, provide:
-- Date (YYYY-MM-DD format)
-- Day of week
-- Workout type (Rest, Easy Run, Tempo Run, Long Run, Intervals, etc.)
-- Distance (if applicable)
-- Duration
-- Detailed description with pacing guidelines
+Day 1
+Date: ${today.toISOString().split('T')[0]}
+Day of week: ${today.toLocaleDateString('en-US', { weekday: 'long' })}
+Workout type: [Rest/Easy Run/Tempo Run/Long Run/Intervals/etc.]
+Distance: [X km or 0 km for rest days]
+Duration: [X min]
+Detailed description: [Specific workout details, pacing guidelines, and instructions]
+
+Day 2
+Date: ${new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+Day of week: ${new Date(today.getTime() + 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'long' })}
+Workout type: [workout type]
+Distance: [X km]
+Duration: [X min]
+Detailed description: [workout details]
+
+Continue this exact format for every single day from Day 1 (today) through Day ${daysDifference} (race day).
+
+IMPORTANT: 
+- Use EXACTLY this format for every day
+- Include ALL ${daysDifference} days
+- Start with Day 1 = today (${today.toISOString().split('T')[0]})
+- End with Day ${daysDifference} = race day (${profileData.race_date})
+- Include specific distances in km
+- Include specific durations in minutes
+- Provide detailed pacing and instruction for each workout
 
 ADDITIONAL GUIDANCE
-[Include injury prevention tips, nutrition advice, and tapering strategy]
-
-Be specific about pacing, distances, and progression. Make it comprehensive and easy to follow day by day.`;
+[Include injury prevention tips, nutrition advice, and tapering strategy]`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

@@ -31,23 +31,33 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
     const lines = trainingPlan.split('\n');
     
     let currentDay: Partial<WorkoutDay> = {};
+    let collectingDescription = false;
+    let description = '';
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       
-      // Look for "Day X" entries
-      if (line.match(/^Day \d+$/)) {
-        // If we have a complete day, add it
-        if (currentDay.date && currentDay.workout) {
-          days.push(currentDay as WorkoutDay);
-        }
-        currentDay = {}; // Reset for new day
+      // Skip empty lines and assumptions section
+      if (!line || line.startsWith('assumptions_made:') || line.startsWith('-')) {
         continue;
       }
       
-      // Look for date entries
-      if (line.startsWith('Date: ')) {
-        const dateStr = line.replace('Date: ', '').trim();
+      // Look for date entries (new format)
+      if (line.startsWith('date: ')) {
+        // Save previous day if it exists
+        if (currentDay.date && currentDay.workout) {
+          if (collectingDescription) {
+            currentDay.description = description.trim();
+          }
+          days.push(currentDay as WorkoutDay);
+        }
+        
+        // Start new day
+        currentDay = {};
+        collectingDescription = false;
+        description = '';
+        
+        const dateStr = line.replace('date: ', '').trim();
         const date = parseISO(dateStr);
         if (isValid(date)) {
           currentDay.date = date;
@@ -55,54 +65,55 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
         continue;
       }
       
-      // Look for workout type
-      if (line.startsWith('Workout type: ')) {
-        currentDay.workout = line.replace('Workout type: ', '').trim();
+      // Look for training session (workout type)
+      if (line.startsWith('training_session: ')) {
+        currentDay.workout = line.replace('training_session: ', '').trim();
         continue;
       }
       
-      // Look for distance
-      if (line.startsWith('Distance: ')) {
-        currentDay.distance = line.replace('Distance: ', '').trim();
+      // Look for estimated distance
+      if (line.startsWith('estimated_distance_km: ')) {
+        const distance = line.replace('estimated_distance_km: ', '').trim();
+        currentDay.distance = distance + ' km';
         continue;
       }
       
-      // Look for duration
-      if (line.startsWith('Duration: ')) {
-        currentDay.duration = line.replace('Duration: ', '').trim();
+      // Look for estimated moving time (duration)
+      if (line.startsWith('estimated_moving_time: ')) {
+        currentDay.duration = line.replace('estimated_moving_time: ', '').trim();
         continue;
       }
       
-      // Look for detailed description
-      if (line.startsWith('Detailed description: ') || line.startsWith('Details: ')) {
-        let description = line.replace(/^(Detailed description: |Details: )/, '').trim();
+      // Collect all other fields for description
+      if (currentDay.date && currentDay.workout && 
+          !line.startsWith('date: ') && 
+          !line.startsWith('training_session: ') &&
+          !line.startsWith('estimated_distance_km: ') &&
+          !line.startsWith('estimated_moving_time: ')) {
         
-        // Continue reading following lines that are part of the description
-        let nextIndex = i + 1;
-        while (nextIndex < lines.length) {
-          const nextLine = lines[nextIndex].trim();
-          
-          // Stop if we hit another field or day
-          if (nextLine.match(/^(Day \d+|Date: |Workout type: |Distance: |Duration: |Detailed description: |Details: |ADDITIONAL GUIDANCE|$)/)) {
-            break;
-          }
-          
-          description += ' ' + nextLine;
-          nextIndex++;
+        collectingDescription = true;
+        
+        // Format the field for better readability
+        if (line.includes(': ')) {
+          const [field, value] = line.split(': ', 2);
+          const formattedField = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          description += `\n**${formattedField}:** ${value}`;
+        } else {
+          description += '\n' + line;
         }
-        
-        currentDay.description = description;
-        i = nextIndex - 1; // Skip the lines we've already processed
-        continue;
       }
     }
     
     // Don't forget the last day
     if (currentDay.date && currentDay.workout) {
+      if (collectingDescription) {
+        currentDay.description = description.trim();
+      }
       days.push(currentDay as WorkoutDay);
     }
     
     console.log('Parsed workout days:', days.length);
+    console.log('Sample parsed day:', days[0]);
     return days;
   }, [trainingPlan]);
 

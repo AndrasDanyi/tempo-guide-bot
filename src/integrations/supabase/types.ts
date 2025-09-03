@@ -24,6 +24,7 @@ export type Database = {
           email: string | null
           experience_years: number | null
           full_name: string | null
+          further_notes: string | null
           gender: string | null
           goal: string
           goal_pace_per_km: string | null
@@ -53,6 +54,7 @@ export type Database = {
           email?: string | null
           experience_years?: number | null
           full_name?: string | null
+          further_notes?: string | null
           gender?: string | null
           goal: string
           goal_pace_per_km?: string | null
@@ -82,6 +84,7 @@ export type Database = {
           email?: string | null
           experience_years?: number | null
           full_name?: string | null
+          further_notes?: string | null
           gender?: string | null
           goal?: string
           goal_pace_per_km?: string | null

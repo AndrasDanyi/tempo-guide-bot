@@ -40,7 +40,8 @@ const ProfileForm = ({ onProfileCreated }: ProfileFormProps) => {
     training_history: '',
     race_results: '',
     strength_notes: '',
-    injuries: ''
+    injuries: '',
+    further_notes: ''
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -99,6 +100,7 @@ const ProfileForm = ({ onProfileCreated }: ProfileFormProps) => {
           race_results: formData.race_results || null,
           strength_notes: formData.strength_notes || null,
           injuries: formData.injuries || null,
+          further_notes: formData.further_notes || null,
         })
         .select()
         .single();
@@ -213,7 +215,7 @@ const ProfileForm = ({ onProfileCreated }: ProfileFormProps) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="race_name">Race/Event Name</Label>
+                <Label htmlFor="race_name">Race/Event Name (Optional)</Label>
                 <Input
                   id="race_name"
                   name="race_name"
@@ -230,7 +232,7 @@ const ProfileForm = ({ onProfileCreated }: ProfileFormProps) => {
                   name="race_distance_km"
                   type="number"
                   min="1"
-                  max="200"
+                  max="999"
                   placeholder="42.2 for marathon"
                   value={formData.race_distance_km}
                   onChange={handleInputChange}
@@ -426,6 +428,18 @@ const ProfileForm = ({ onProfileCreated }: ProfileFormProps) => {
                 value={formData.injuries}
                 onChange={handleInputChange}
                 rows={2}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="further_notes">Any Further Notes/Info (Optional)</Label>
+              <Textarea
+                id="further_notes"
+                name="further_notes"
+                placeholder="Any additional information, preferences, schedule constraints, or special considerations for your training plan"
+                value={formData.further_notes}
+                onChange={handleInputChange}
+                rows={3}
               />
             </div>
 

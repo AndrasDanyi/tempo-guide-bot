@@ -43,24 +43,12 @@ serve(async (req) => {
     const raceDate = new Date(profileData.race_date);
     const daysDifference = Math.ceil((raceDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
-    const prompt = `Generate a training plan overview. Be concise and direct.
+    const prompt = `${daysDifference}-day plan for ${profileData.race_distance_km || 21}K race. Start: ${today.toISOString().split('T')[0]}, Race: ${profileData.race_date}
 
-RUNNER: ${profileData.age || 25} years old, ${profileData.experience_years || 1} years experience
-GOAL: ${profileData.race_distance_km || 'Marathon'} km race on ${profileData.race_date}
-WEEKLY MILEAGE: ${profileData.current_weekly_mileage || '20'} km/week
-DAYS PER WEEK: ${profileData.days_per_week || 5} days
+Format per day:
+DATE|DAY|TYPE|KM|MIN|LOAD|PURPOSE
 
-OUTPUT: For each day from today (${today.toISOString().split('T')[0]}) to race day, return exactly this format:
-
-Date (YYYY-MM-DD)
-Day of Week  
-Training Session (Rest/Easy Run/Long Run/Tempo/Intervals)
-Distance (km)
-Duration (minutes)  
-Load (Low/Medium/High)
-Purpose (1 sentence)
-
-Keep it simple - just the overview data, no extra text.`;
+Example: 2025-09-03|Tue|Easy Run|8|45|Low|Base building`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -71,13 +59,9 @@ Keep it simple - just the overview data, no extra text.`;
       body: JSON.stringify({
         model: 'gpt-5-nano-2025-08-07',
         messages: [
-          { 
-            role: 'system', 
-            content: 'You are an expert running coach. Generate concise, structured training plan overviews. Be precise with the output format.' 
-          },
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 8000,
+        max_completion_tokens: 2000,
       }),
     });
 

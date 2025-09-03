@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, Target } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, isValid, addMonths, subMonths } from 'date-fns';
 
@@ -243,7 +244,7 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
 
       {/* Workout Detail Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
@@ -252,46 +253,55 @@ const TrainingCalendarView = ({ trainingPlan, profile }: TrainingCalendarViewPro
           </DialogHeader>
           
           {selectedDay && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold">Day {workoutDays.findIndex(w => isSameDay(w.date, selectedDay.date)) + 1}</h3>
-                <p className="text-sm text-muted-foreground">{format(selectedDay.date, 'EEEE')}</p>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex items-center justify-center">
-                  <Badge 
-                    variant="secondary" 
-                    className={`text-sm px-3 py-1 ${getWorkoutTypeColor(selectedDay.workout)}`}
-                  >
-                    {selectedDay.workout}
-                  </Badge>
+            <ScrollArea className="max-h-[60vh] pr-4">
+              <div className="space-y-6">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold">Day {workoutDays.findIndex(w => isSameDay(w.date, selectedDay.date)) + 1}</h3>
+                  <p className="text-sm text-muted-foreground">{format(selectedDay.date, 'EEEE')}</p>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div className="p-3 bg-secondary rounded-lg">
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-xs font-medium">Distance</span>
-                    </div>
-                    <span className="text-sm font-semibold">{selectedDay.distance || '0 km'}</span>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center">
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-sm px-3 py-1 ${getWorkoutTypeColor(selectedDay.workout)}`}
+                    >
+                      {selectedDay.workout}
+                    </Badge>
                   </div>
                   
-                  <div className="p-3 bg-secondary rounded-lg">
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-xs font-medium">Duration</span>
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                    <div className="p-3 bg-secondary rounded-lg">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs font-medium">Distance</span>
+                      </div>
+                      <span className="text-sm font-semibold">{selectedDay.distance || '0 km'}</span>
                     </div>
-                    <span className="text-sm font-semibold">{selectedDay.duration || '0 min'}</span>
+                    
+                    <div className="p-3 bg-secondary rounded-lg">
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs font-medium">Duration</span>
+                      </div>
+                      <span className="text-sm font-semibold">{selectedDay.duration || '0 min'}</span>
+                    </div>
                   </div>
                 </div>
+                
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-semibold mb-2 flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    Workout Details
+                  </h4>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedDay.description}</p>
+                </div>
+                
+                <div className="text-xs text-muted-foreground text-center">
+                  <p>All training fields will be visible and easy to access once the enhanced AI coach provides detailed daily plans.</p>
+                </div>
               </div>
-              
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-semibold mb-2">Workout Details:</h4>
-                <p className="text-sm leading-relaxed">{selectedDay.description}</p>
-              </div>
-            </div>
+            </ScrollArea>
           )}
         </DialogContent>
       </Dialog>

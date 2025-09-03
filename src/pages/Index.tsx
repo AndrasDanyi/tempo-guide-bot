@@ -9,7 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import ProfileForm from '@/components/ProfileForm';
 import TrainingPlanDisplay from '@/components/TrainingPlanDisplay';
 import TrainingCalendarView from '@/components/TrainingCalendarView';
-import { User, LogOut, Target, Calendar, FileText } from 'lucide-react';
+import OnboardingChatbot from '@/components/OnboardingChatbot';
+import { User, LogOut, Target, Calendar, FileText, MessageCircle, ClipboardList } from 'lucide-react';
 
 const Index = () => {
   const { user, signOut, loading } = useAuth();
@@ -18,6 +19,7 @@ const Index = () => {
   const [trainingPlan, setTrainingPlan] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [onboardingMode, setOnboardingMode] = useState<'chat' | 'form'>('chat');
 
   useEffect(() => {
     if (user) {
@@ -175,12 +177,32 @@ const Index = () => {
           <div>
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold mb-4">Welcome to Your AI Running Coach!</h2>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Let's get started by creating your runner profile. We'll use this information 
-                to generate a personalized training plan just for you.
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+                Let's get started by creating your runner profile. Choose how you'd like to provide your information:
               </p>
+              
+              {/* Onboarding Mode Selection */}
+              <div className="flex justify-center mb-8">
+                <Tabs value={onboardingMode} onValueChange={(value) => setOnboardingMode(value as 'chat' | 'form')} className="w-full max-w-md">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="chat" className="flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4" />
+                      AI Chat
+                    </TabsTrigger>
+                    <TabsTrigger value="form" className="flex items-center gap-2">
+                      <ClipboardList className="h-4 w-4" />
+                      Form
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
             </div>
-            <ProfileForm onProfileCreated={handleProfileCreated} />
+            
+            {onboardingMode === 'chat' ? (
+              <OnboardingChatbot onProfileComplete={handleProfileCreated} />
+            ) : (
+              <ProfileForm onProfileCreated={handleProfileCreated} />
+            )}
           </div>
         ) : !trainingPlan ? (
           <div className="text-center">

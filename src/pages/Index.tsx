@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import ProfileForm from '@/components/ProfileForm';
 import TrainingPlanDisplay from '@/components/TrainingPlanDisplay';
 import TrainingCalendarView from '@/components/TrainingCalendarView';
+import TrainingWeekView from '@/components/TrainingWeekView';
 import OnboardingChatbot from '@/components/OnboardingChatbot';
 import EditProfileDialog from '@/components/EditProfileDialog';
 import { User, LogOut, Target, Calendar, FileText, MessageCircle, ClipboardList, Edit3, Clock, Loader2 } from 'lucide-react';
@@ -323,8 +324,12 @@ const Index = () => {
             </div>
             
             {trainingPlan?.plan_content?.text ? (
-              <Tabs defaultValue="text" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+              <Tabs defaultValue="week" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="week" className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Week View
+                  </TabsTrigger>
                   <TabsTrigger value="text" className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     Text View
@@ -334,6 +339,13 @@ const Index = () => {
                     Calendar View
                   </TabsTrigger>
                 </TabsList>
+                
+                <TabsContent value="week">
+                  <TrainingWeekView 
+                    trainingPlan={trainingPlan} 
+                    profile={profile}
+                  />
+                </TabsContent>
                 
                 <TabsContent value="text">
                   <TrainingPlanDisplay 

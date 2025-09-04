@@ -47,37 +47,39 @@ serve(async (req) => {
       if (!line.includes('|')) continue;
 
       const parts = line.split('|').map(part => part.trim());
-      if (parts.length !== 7) {
+      if (parts.length !== 6) {
         console.warn('Skipping malformed line:', line);
         continue;
       }
 
       const [
         dateStr,
-        trainingSession,
-        mileageBreakdown,
-        paceTargets,
-        distanceStr,
-        avgPaceStr,
-        movingTimeStr
+        workoutType,
+        description,
+        duration,
+        distance,
+        pace
       ] = parts;
 
       // Parse distance (handle N/A or invalid values)
       let estimatedDistanceKm = null;
-      if (distanceStr && distanceStr !== 'N/A' && distanceStr !== '0.0' && !isNaN(parseFloat(distanceStr))) {
-        estimatedDistanceKm = parseFloat(distanceStr);
+      if (distance && distance !== 'N/A' && distance !== '0 miles' && distance !== '0') {
+        // Extract numeric value from distance string like "3-4 miles"
+        const distanceMatch = distance.match(/(\d+(?:\.\d+)?)/);
+        if (distanceMatch) {
+          estimatedDistanceKm = parseFloat(distanceMatch[1]) * 1.60934; // Convert miles to km
+        }
       }
 
       const trainingDay = {
         user_id: user.id,
         training_plan_id: planId,
         date: dateStr,
-        workout_type: trainingSession, // Now stores workout type (Easy Run, Tempo Run, etc.)
-        description: mileageBreakdown === 'N/A' ? null : mileageBreakdown, // Now stores simple description
-        pace_range: paceTargets === 'N/A' ? null : paceTargets, // Now stores pace range
+        training_session: workoutType,
+        mileage_breakdown: description === 'N/A' ? null : description,
+        pace_targets: pace === 'N/A' ? null : pace,
         estimated_distance_km: estimatedDistanceKm,
-        estimated_avg_pace_min_per_km: avgPaceStr === 'N/A' ? null : avgPaceStr,
-        estimated_duration_min: movingTimeStr === 'N/A' || movingTimeStr === '0:00' ? null : movingTimeStr,
+        estimated_moving_time: duration === 'N/A' || duration === '0 min' ? null : duration,
         detailed_fields_generated: false
       };
 

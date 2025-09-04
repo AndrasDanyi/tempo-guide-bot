@@ -43,39 +43,29 @@ serve(async (req) => {
     const raceDate = new Date(profileData.race_date);
     const daysDifference = Math.ceil((raceDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
-    const prompt = `Create a simple training plan overview for a ${profileData.race_distance_km || 21}km race. Generate clean, basic workout summaries that will be displayed in a weekly calendar view.
+    const prompt = `Create a training plan for a ${profileData.race_distance_km || 21}km race based on this user profile:
 
-USER PROFILE:
-• Experience: ${profileData.experience_years || 'Beginner'} years
-• Current weekly mileage: ${profileData.current_weekly_mileage || 30}km  
-• Goal pace: ${profileData.goal_pace_per_km || '5:30'} per km
-• Race date: ${profileData.race_date}
-• Training days per week: ${profileData.days_per_week || 5}
+Experience: ${profileData.experience_years || 'Beginner'} years
+Current weekly mileage: ${profileData.current_weekly_mileage || 30}km  
+Goal pace: ${profileData.goal_pace_per_km || '5:30'} per km
+Race date: ${profileData.race_date}
+Training days per week: ${profileData.days_per_week || 5}
 
-TRAINING PRINCIPLES:
-• Build progressive mileage safely
-• Include easy runs, tempo runs, intervals, and long runs
-• Taper properly in final 2 weeks
-• Include rest days for recovery
+Generate a training plan from ${today.toISOString().split('T')[0]} to ${profileData.race_date} using this exact format:
+DATE|WORKOUT_TYPE|DESCRIPTION|DURATION|DISTANCE|PACE
 
-OUTPUT FORMAT:
-For each day from ${today.toISOString().split('T')[0]} to ${profileData.race_date}, use this exact format:
-DATE|WORKOUT_TYPE|SIMPLE_DESCRIPTION|PACE_RANGE|DISTANCE_KM|AVG_PACE|DURATION
-
-WORKOUT TYPES: Rest, Easy Run, Tempo Run, Long Run, Intervals, Track Workout
-SIMPLE_DESCRIPTION: Brief, clear description (e.g., "Focus on easy effort, conversational pace")
-PACE_RANGE: Simple range (e.g., "Easy (8:30-9:00/mi)" or "Tempo (7:15-7:30/mi)")
-DISTANCE_KM: Total distance as number (e.g., 6.0)
-AVG_PACE: Average pace (e.g., "5:45")
-DURATION: Time in min (e.g., "45 min")
+WORKOUT_TYPE options: Recovery Run, Easy Run, Tempo Run, Long Run, Track Workout, Intervals, Rest
+DESCRIPTION: Brief workout description (e.g., "Focus on easy effort, conversational pace")
+DURATION: Time in minutes (e.g., "30 min")  
+DISTANCE: Distance in miles (e.g., "3-4 miles")
+PACE: Pace description (e.g., "Easy (8:30-9:00/mi)")
 
 Examples:
-2025-09-04|Easy Run|Focus on easy effort, conversational pace|Easy (8:30-9:00/mi)|5.0|8:45|43:45
-2025-09-05|Rest|Complete rest day|N/A|0.0|N/A|0:00
-2025-09-06|Tempo Run|10 min warm-up, 20 min tempo, 15 min cool-down|Tempo (7:15-7:30/mi)|6.0|7:30|45:00
-2025-09-07|Long Run|Relaxed effort, focus on form|Easy (8:15-8:45/mi)|8.0|8:30|68:00
+2025-09-04|Recovery Run|Focus on easy effort, conversational pace|30 min|3-4 miles|Easy (8:30-9:00/mi)
+2025-09-05|Tempo Run|10 min warm-up, 20 min tempo, 15 min cool-down|45 min|6 miles|Tempo (7:15-7:30/mi)
+2025-09-06|Rest|Complete rest day|0 min|0 miles|N/A
 
-Generate ${daysDifference} days of training:`;
+Generate all ${daysDifference} days:`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

@@ -72,12 +72,12 @@ serve(async (req) => {
         user_id: user.id,
         training_plan_id: planId,
         date: dateStr,
-        training_session: trainingSession,
-        mileage_breakdown: mileageBreakdown === 'N/A' ? null : mileageBreakdown,
-        pace_targets: paceTargets === 'N/A' ? null : paceTargets,
+        workout_type: trainingSession, // Now stores workout type (Easy Run, Tempo Run, etc.)
+        description: mileageBreakdown === 'N/A' ? null : mileageBreakdown, // Now stores simple description
+        pace_range: paceTargets === 'N/A' ? null : paceTargets, // Now stores pace range
         estimated_distance_km: estimatedDistanceKm,
         estimated_avg_pace_min_per_km: avgPaceStr === 'N/A' ? null : avgPaceStr,
-        estimated_moving_time: movingTimeStr === 'N/A' || movingTimeStr === '0:00' ? null : movingTimeStr,
+        estimated_duration_min: movingTimeStr === 'N/A' || movingTimeStr === '0:00' ? null : movingTimeStr,
         detailed_fields_generated: false
       };
 

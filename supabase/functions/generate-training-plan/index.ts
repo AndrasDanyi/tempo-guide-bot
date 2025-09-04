@@ -145,14 +145,24 @@ RULES
         messages: [
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 200000,
+        max_completion_tokens: 120000, // Safe limit for gpt-5-nano (max 128k)
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.text();
       console.error('OpenAI API Error:', errorData);
-      throw new Error(`OpenAI API Error: ${response.status}`);
+      
+      let parsedError;
+      try {
+        parsedError = JSON.parse(errorData);
+      } catch {
+        parsedError = { error: { message: errorData } };
+      }
+      
+      const errorMessage = parsedError?.error?.message || `HTTP ${response.status}: ${response.statusText}`;
+      console.error('Parsed OpenAI error:', parsedError);
+      throw new Error(`OpenAI API Error: ${errorMessage}`);
     }
 
     const data = await response.json();

@@ -13,6 +13,7 @@ import TrainingCalendarView from '@/components/TrainingCalendarView';
 import TrainingWeekView from '@/components/TrainingWeekView';
 import OnboardingChatbot from '@/components/OnboardingChatbot';
 import EditProfileDialog from '@/components/EditProfileDialog';
+import StravaDashboard from '@/components/StravaDashboard';
 import { User, LogOut, Target, Calendar, FileText, MessageCircle, ClipboardList, Edit3, Clock, Loader2 } from 'lucide-react';
 
 const Index = () => {
@@ -324,44 +325,49 @@ const Index = () => {
             </div>
             
             {trainingPlan?.plan_content?.text ? (
-              <Tabs defaultValue="week" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="week" className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Week View
-                  </TabsTrigger>
-                  <TabsTrigger value="text" className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Text View
-                  </TabsTrigger>
-                  <TabsTrigger value="calendar" className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Calendar View
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="week">
-                  <TrainingWeekView 
-                    trainingPlan={trainingPlan} 
-                    profile={profile}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="text">
-                  <TrainingPlanDisplay 
-                    trainingPlan={trainingPlan.plan_content.text} 
-                    profile={profile}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="calendar">
-                  <TrainingCalendarView 
-                    trainingPlan={trainingPlan.plan_content.text} 
-                    profile={profile}
-                    planStartDate={trainingPlan.created_at}
-                  />
-                </TabsContent>
-              </Tabs>
+              <>
+                <Tabs defaultValue="week" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="week" className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Week View
+                    </TabsTrigger>
+                    <TabsTrigger value="text" className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Text View
+                    </TabsTrigger>
+                    <TabsTrigger value="calendar" className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Calendar View
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="week">
+                    <TrainingWeekView 
+                      trainingPlan={trainingPlan} 
+                      profile={profile}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="text">
+                    <TrainingPlanDisplay 
+                      trainingPlan={trainingPlan.plan_content.text} 
+                      profile={profile}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="calendar">
+                    <TrainingCalendarView 
+                      trainingPlan={trainingPlan.plan_content.text} 
+                      profile={profile}
+                      planStartDate={trainingPlan.created_at}
+                    />
+                  </TabsContent>
+                </Tabs>
+
+                {/* Strava Dashboard */}
+                <StravaDashboard profile={profile} />
+              </>
             ) : (
               <Card className="max-w-md mx-auto">
                 <CardHeader>

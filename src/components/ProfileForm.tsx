@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import StravaConnection from '@/components/StravaConnection';
 
 interface ProfileFormProps {
   onProfileCreated: (profile: any) => void;
@@ -442,6 +443,23 @@ const ProfileForm = ({ onProfileCreated }: ProfileFormProps) => {
                 rows={3}
               />
             </div>
+
+            {/* Strava Connection */}
+            <Card className="border-2 border-dashed border-muted-foreground/25">
+              <CardHeader>
+                <CardTitle className="text-lg">Optional: Connect Strava</CardTitle>
+                <CardDescription>
+                  Connect your Strava account to import your running history for even more personalized training plans.
+                  You can also connect this later in your profile settings.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <StravaConnection 
+                  profile={{ user_id: user?.id, strava_connected: false }} 
+                  onUpdate={() => {}} 
+                />
+              </CardContent>
+            </Card>
 
             <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
               {isSubmitting ? 'Creating Profile...' : 'Create Profile & Generate Training Plan'}

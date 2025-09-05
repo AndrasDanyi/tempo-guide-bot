@@ -37,6 +37,12 @@ export type Database = {
           race_name: string | null
           race_results: string | null
           race_surface: string | null
+          strava_access_token: string | null
+          strava_athlete_id: string | null
+          strava_connected: boolean | null
+          strava_connected_at: string | null
+          strava_refresh_token: string | null
+          strava_token_expires_at: string | null
           strength_notes: string | null
           time_limits: string | null
           training_history: string | null
@@ -67,6 +73,12 @@ export type Database = {
           race_name?: string | null
           race_results?: string | null
           race_surface?: string | null
+          strava_access_token?: string | null
+          strava_athlete_id?: string | null
+          strava_connected?: boolean | null
+          strava_connected_at?: string | null
+          strava_refresh_token?: string | null
+          strava_token_expires_at?: string | null
           strength_notes?: string | null
           time_limits?: string | null
           training_history?: string | null
@@ -97,6 +109,12 @@ export type Database = {
           race_name?: string | null
           race_results?: string | null
           race_surface?: string | null
+          strava_access_token?: string | null
+          strava_athlete_id?: string | null
+          strava_connected?: boolean | null
+          strava_connected_at?: string | null
+          strava_refresh_token?: string | null
+          strava_token_expires_at?: string | null
           strength_notes?: string | null
           time_limits?: string | null
           training_history?: string | null
@@ -104,6 +122,179 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
+        }
+        Relationships: []
+      }
+      strava_activities: {
+        Row: {
+          achievement_count: number | null
+          activity_type: string
+          average_cadence: number | null
+          average_heartrate: number | null
+          average_speed: number | null
+          average_watts: number | null
+          created_at: string
+          distance: number | null
+          elapsed_time: number | null
+          id: string
+          kilojoules: number | null
+          kudos_count: number | null
+          max_heartrate: number | null
+          max_speed: number | null
+          moving_time: number | null
+          name: string
+          start_date: string
+          strava_activity_id: number
+          suffer_score: number | null
+          total_elevation_gain: number | null
+          updated_at: string
+          user_id: string
+          weighted_average_watts: number | null
+        }
+        Insert: {
+          achievement_count?: number | null
+          activity_type: string
+          average_cadence?: number | null
+          average_heartrate?: number | null
+          average_speed?: number | null
+          average_watts?: number | null
+          created_at?: string
+          distance?: number | null
+          elapsed_time?: number | null
+          id?: string
+          kilojoules?: number | null
+          kudos_count?: number | null
+          max_heartrate?: number | null
+          max_speed?: number | null
+          moving_time?: number | null
+          name: string
+          start_date: string
+          strava_activity_id: number
+          suffer_score?: number | null
+          total_elevation_gain?: number | null
+          updated_at?: string
+          user_id: string
+          weighted_average_watts?: number | null
+        }
+        Update: {
+          achievement_count?: number | null
+          activity_type?: string
+          average_cadence?: number | null
+          average_heartrate?: number | null
+          average_speed?: number | null
+          average_watts?: number | null
+          created_at?: string
+          distance?: number | null
+          elapsed_time?: number | null
+          id?: string
+          kilojoules?: number | null
+          kudos_count?: number | null
+          max_heartrate?: number | null
+          max_speed?: number | null
+          moving_time?: number | null
+          name?: string
+          start_date?: string
+          strava_activity_id?: number
+          suffer_score?: number | null
+          total_elevation_gain?: number | null
+          updated_at?: string
+          user_id?: string
+          weighted_average_watts?: number | null
+        }
+        Relationships: []
+      }
+      strava_best_efforts: {
+        Row: {
+          achievement_rank: number | null
+          activity_id: string | null
+          created_at: string
+          distance: number
+          elapsed_time: number
+          id: string
+          moving_time: number | null
+          name: string
+          pr_rank: number | null
+          start_date: string
+          strava_effort_id: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achievement_rank?: number | null
+          activity_id?: string | null
+          created_at?: string
+          distance: number
+          elapsed_time: number
+          id?: string
+          moving_time?: number | null
+          name: string
+          pr_rank?: number | null
+          start_date: string
+          strava_effort_id: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achievement_rank?: number | null
+          activity_id?: string | null
+          created_at?: string
+          distance?: number
+          elapsed_time?: number
+          id?: string
+          moving_time?: number | null
+          name?: string
+          pr_rank?: number | null
+          start_date?: string
+          strava_effort_id?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_strava_best_efforts_activity_id"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "strava_activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strava_stats: {
+        Row: {
+          achievement_count: number | null
+          count: number | null
+          created_at: string
+          distance: number | null
+          elevation_gain: number | null
+          id: string
+          moving_time: number | null
+          period_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achievement_count?: number | null
+          count?: number | null
+          created_at?: string
+          distance?: number | null
+          elevation_gain?: number | null
+          id?: string
+          moving_time?: number | null
+          period_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achievement_count?: number | null
+          count?: number | null
+          created_at?: string
+          distance?: number | null
+          elevation_gain?: number | null
+          id?: string
+          moving_time?: number | null
+          period_type?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

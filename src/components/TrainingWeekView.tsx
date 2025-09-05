@@ -121,7 +121,7 @@ const TrainingWeekView: React.FC<TrainingWeekViewProps> = ({ trainingPlan, profi
     if (!day.detailed_fields_generated && !isLoadingDetails) {
       setIsLoadingDetails(true);
       try {
-        const { error } = await supabase.functions.invoke('generate-day-details', {
+        const { data, error } = await supabase.functions.invoke('generate-day-details', {
           body: {
             trainingDayId: day.id,
             profileData: profile,
@@ -129,8 +129,17 @@ const TrainingWeekView: React.FC<TrainingWeekViewProps> = ({ trainingPlan, profi
           }
         });
 
-        if (!error) {
-          // Refetch the updated day data
+        if (error) {
+          console.error('Error generating detailed fields:', error);
+          toast.error('Failed to generate detailed workout information. Please try again.');
+        } else if (data?.error) {
+          console.error('Function returned error:', data.error);
+          toast.error(data.error || 'Failed to generate detailed workout information. Please try again.');
+        } else {
+          toast.success('Detailed workout information has been generated!');
+          // Refresh the training days to get the updated data
+          fetchTrainingDays();
+          // Update the selected day with new data
           const { data: updatedDay } = await supabase
             .from('training_days')
             .select('*')
@@ -139,11 +148,11 @@ const TrainingWeekView: React.FC<TrainingWeekViewProps> = ({ trainingPlan, profi
           
           if (updatedDay) {
             setSelectedDay(updatedDay);
-            fetchTrainingDays(); // Refresh the list
           }
         }
       } catch (error) {
         console.error('Error generating day details:', error);
+        toast.error('Failed to generate detailed workout information. Please try again.');
       } finally {
         setIsLoadingDetails(false);
       }

@@ -38,46 +38,28 @@ serve(async (req) => {
 
     console.log('Generating detailed fields for training day:', trainingDayId);
 
-    const prompt = `You are an expert running coach. Generate detailed training instructions for this specific day.
+    const prompt = `Generate detailed training information for this workout. Respond EXACTLY in this format:
 
-RUNNER PROFILE:
-• Name: ${profileData.full_name || 'Not specified'}
-• Age: ${profileData.age || 'Not specified'}
-• Gender: ${profileData.gender || 'Not specified'}
-• Height: ${profileData.height || 'Not specified'}cm
-• Weight: ${profileData.weight_kg || 'Not specified'}kg
-• Experience: ${profileData.experience_years || 'Not specified'} years
-• Weekly Mileage: ${profileData.current_weekly_mileage || 'Not specified'}km
-• Longest Run: ${profileData.longest_run_km || 'Not specified'}km
-• Past Injuries: ${profileData.injuries || 'None noted'}
-• Strength Training: ${profileData.strength_notes || 'Not specified'}
-• Terrain: ${profileData.elevation_context || 'Flat'}
-• Goal: ${profileData.goal}
-• Race Date: ${profileData.race_date}
+HEART_RATE_ZONES: Zone 1 (60-70% max HR) for warm-up, Zone 2 (70-80% max HR) for main session
+PURPOSE: Build aerobic base and improve running economy
+SESSION_LOAD: Medium - moderate training stress with good recovery
+NOTES: Focus on relaxed shoulders, midfoot strike, and breathing rhythm
+WHAT_TO_EAT_DRINK: Pre: banana 30min before. During: water every 15min. Post: protein shake within 30min
+ADDITIONAL_TRAINING: 15min core work, 10min glute activation
+RECOVERY_TRAINING: 10min foam rolling, hip flexor stretches, calf stretches
+ESTIMATED_ELEVATION_GAIN_M: 50
+ESTIMATED_AVG_POWER_W: 280
+ESTIMATED_CADENCE_SPM: 180
+ESTIMATED_CALORIES: 350
+DAILY_NUTRITION_ADVICE: Target 2200 calories. Breakfast: oatmeal with berries. Dinner: salmon with quinoa
 
-TODAY'S WORKOUT:
-• Date: ${dayData.specific_date}
-• Session: ${dayData.training_session}
-• Distance: ${dayData.estimated_distance_km}km
-• Structure: ${dayData.mileage_breakdown || 'Not specified'}
-• Pace Targets: ${dayData.pace_targets || 'Not specified'}
-• Session Load: ${dayData.session_load}
-• Purpose: ${dayData.purpose}
-
-Generate ONLY the following fields in this exact format:
-
-HEART_RATE_ZONES: [zones for different segments]
-PURPOSE: [detailed purpose and why this workout matters]
-SESSION_LOAD: [Low/Medium/High with explanation]
-NOTES: [technique focus, form cues, mental tips]
-WHAT_TO_EAT_DRINK: [pre/during/post fueling advice]
-ADDITIONAL_TRAINING: [strength, mobility, cross-training]
-RECOVERY_TRAINING: [foam rolling, stretching, recovery protocols]
-ESTIMATED_ELEVATION_GAIN_M: [number only]
-ESTIMATED_AVG_POWER_W: [number only]
-ESTIMATED_CADENCE_SPM: [number only]
-ESTIMATED_CALORIES: [number only]
-DAILY_NUTRITION_ADVICE: [calorie target, macros, 2 meal suggestions]`;
+Workout Details:
+• Date: ${dayData.date}
+• Type: ${dayData.training_session}
+• Distance: ${dayData.estimated_distance_km || 'N/A'}km
+• Duration: ${dayData.estimated_moving_time || 'N/A'}
+• Structure: ${dayData.mileage_breakdown || 'Standard workout'}
+• Pace: ${dayData.pace_targets || 'Easy effort'}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -90,7 +72,7 @@ DAILY_NUTRITION_ADVICE: [calorie target, macros, 2 meal suggestions]`;
         messages: [
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 4000,
+        max_completion_tokens: 800,
       }),
     });
 
@@ -101,12 +83,15 @@ DAILY_NUTRITION_ADVICE: [calorie target, macros, 2 meal suggestions]`;
     }
 
     const data = await response.json();
-    console.log('Detailed fields generated successfully');
+    console.log('OpenAI response received:', data);
     
-    const generatedContent = data.choices[0].message.content;
+    const generatedContent = data.choices[0]?.message?.content;
     if (!generatedContent || generatedContent.trim().length === 0) {
+      console.error('OpenAI returned empty or invalid content:', data);
       throw new Error('OpenAI returned empty content');
     }
+    
+    console.log('Generated content:', generatedContent);
 
     // Parse the generated content
     const lines = generatedContent.split('\n').filter(line => line.trim());

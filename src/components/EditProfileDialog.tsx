@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import StravaConnection from '@/components/StravaConnection';
 
 interface EditProfileDialogProps {
   isOpen: boolean;
@@ -475,6 +476,20 @@ const EditProfileDialog = ({ isOpen, onClose, profile, onProfileUpdated }: EditP
                 value={formData.further_notes}
                 onChange={handleInputChange}
                 rows={3}
+              />
+            </div>
+
+            {/* Strava Integration Section */}
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-medium mb-4">Strava Integration</h3>
+              <StravaConnection 
+                profile={profile} 
+                onUpdate={() => {
+                  // Optionally refresh profile data after Strava connection changes
+                  if (onProfileUpdated && profile) {
+                    onProfileUpdated(profile);
+                  }
+                }} 
               />
             </div>
 

@@ -339,7 +339,7 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              {selectedDay && format(new Date(selectedDay.date), 'EEEE, MMMM d, yyyy')}
+              {selectedDay && format(new Date(selectedDay.date + 'T00:00:00'), 'EEEE, MMMM d, yyyy')}
             </DialogTitle>
           </DialogHeader>
           
@@ -351,7 +351,7 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
                     Day {trainingDays.findIndex(d => d.id === selectedDay.id) + 1}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    {format(new Date(selectedDay.date), 'EEEE')}
+                    {format(new Date(selectedDay.date + 'T00:00:00'), 'EEEE')}
                   </p>
                 </div>
                 

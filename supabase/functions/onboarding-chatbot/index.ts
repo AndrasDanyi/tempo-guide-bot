@@ -52,7 +52,7 @@ OPTIONAL FIELDS TO COLLECT:
 - goal_pace_per_km (string) - Target pace like "4:30" or "5:00"
 - days_per_week (number) - Training days per week (3-7)
 - elevation_context (string) - flat, hilly, mountainous, or mixed
-- units (string) - metric or imperial
+- units (string) - metric or imperial (defaults to metric if not specified)
 - time_limits (string) - Any time constraints or schedule notes
 - training_history (string) - Description of their running background
 - race_results (string) - Recent race times and performances
@@ -68,6 +68,8 @@ NATURAL LANGUAGE PARSING RULES:
 - Parse heights with units (e.g., "182 cm" = 182, "6 feet" = 183)
 - Extract paces from text (e.g., "under 4 minutes per km" = "4:00")
 - Convert race types to distances (e.g., "5K" = 5, "10K" = 10, "half marathon" = 21, "marathon" = 42, "ultra" = 50+)
+- If user mentions miles/imperial measurements, set units to "imperial" and convert appropriately
+- Default to metric units unless user specifically mentions miles, feet, pounds, etc.
 - Make intelligent assumptions about missing context (current year, metric units, etc.)
 
 CONVERSATION RULES:

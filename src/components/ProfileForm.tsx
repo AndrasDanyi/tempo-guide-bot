@@ -338,7 +338,7 @@ const ProfileForm = ({ onProfileCreated }: ProfileFormProps) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="days_per_week">Training Days Per Week</Label>
                 <Select onValueChange={(value) => handleSelectChange('days_per_week', value)} value={formData.days_per_week}>
@@ -366,6 +366,19 @@ const ProfileForm = ({ onProfileCreated }: ProfileFormProps) => {
                     <SelectItem value="hilly">Hilly</SelectItem>
                     <SelectItem value="mountainous">Mountainous</SelectItem>
                     <SelectItem value="mixed">Mixed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="units">Units</Label>
+                <Select onValueChange={(value) => handleSelectChange('units', value)} value={formData.units}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select units" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="metric">Metric (km)</SelectItem>
+                    <SelectItem value="imperial">Imperial (miles)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -26,7 +26,6 @@ const StravaConnection: React.FC<StravaConnectionProps> = ({ profile, onUpdate }
     try {
       const { data, error } = await supabase.functions.invoke('strava-auth', {
         body: {
-          userId: profile.user_id,
           redirectUrl: window.location.origin
         }
       });
@@ -56,23 +55,24 @@ const StravaConnection: React.FC<StravaConnectionProps> = ({ profile, onUpdate }
     setIsDisconnecting(true);
     
     try {
-      const { error } = await supabase
+      // Clear profile connection status
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({
           strava_connected: false,
           strava_athlete_id: null,
-          strava_access_token: null,
-          strava_refresh_token: null,
-          strava_token_expires_at: null,
           strava_connected_at: null
         })
         .eq('user_id', profile.user_id);
 
-      if (error) {
-        console.error('Error disconnecting Strava:', error);
+      if (profileError) {
+        console.error('Error disconnecting Strava:', profileError);
         toast.error('Failed to disconnect Strava. Please try again.');
         return;
       }
+
+      // Clear encrypted tokens
+      await supabase.from('encrypted_strava_tokens').delete().eq('user_id', profile.user_id);
 
       // Clear Strava data
       await supabase.from('strava_activities').delete().eq('user_id', profile.user_id);
@@ -95,9 +95,7 @@ const StravaConnection: React.FC<StravaConnectionProps> = ({ profile, onUpdate }
     
     try {
       const { data, error } = await supabase.functions.invoke('fetch-strava-data', {
-        body: {
-          userId: profile.user_id
-        }
+        body: {} // No userId needed - authenticated via JWT
       });
 
       if (error) {

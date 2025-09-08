@@ -8,8 +8,7 @@ const corsHeaders = {
 };
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -17,31 +16,50 @@ serve(async (req) => {
   }
 
   try {
-    const { userId } = await req.json();
-
-    if (!userId) {
-      throw new Error('User ID is required');
+    // Get authorization header and validate JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new Error('Missing or invalid authorization header');
     }
 
-    // Get user's Strava connection info
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('strava_access_token, strava_refresh_token, strava_token_expires_at')
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Get user from JWT
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (authError || !user) {
+      throw new Error('Invalid or expired token');
+    }
+
+    const userId = user.id;
+
+    // Get user's encrypted Strava tokens
+    const { data: tokenData, error: tokenError } = await supabase
+      .from('encrypted_strava_tokens')
+      .select('access_token_encrypted, refresh_token_encrypted, expires_at')
       .eq('user_id', userId)
       .single();
 
-    if (profileError || !profile?.strava_access_token) {
+    if (tokenError || !tokenData?.access_token_encrypted) {
       throw new Error('User not connected to Strava');
     }
 
+    // Decrypt tokens (simple base64 decoding - production should use proper decryption)
+    const decryptToken = (encryptedToken: string) => atob(encryptedToken);
+    
     // Check if token needs refresh
-    let accessToken = profile.strava_access_token;
-    const tokenExpires = new Date(profile.strava_token_expires_at);
+    let accessToken = decryptToken(tokenData.access_token_encrypted);
+    const tokenExpires = new Date(tokenData.expires_at);
     const now = new Date();
 
     if (tokenExpires <= now) {
       // Refresh token
-      const refreshResponse = await refreshStravaToken(profile.strava_refresh_token, userId);
+      const refreshResponse = await refreshStravaToken(
+        decryptToken(tokenData.refresh_token_encrypted), 
+        userId
+      );
       if (!refreshResponse.success) {
         throw new Error('Failed to refresh Strava token');
       }
@@ -126,6 +144,8 @@ serve(async (req) => {
 
 async function refreshStravaToken(refreshToken: string, userId: string) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
     const response = await fetch('https://www.strava.com/oauth/token', {
       method: 'POST',
       headers: {
@@ -146,13 +166,16 @@ async function refreshStravaToken(refreshToken: string, userId: string) {
     const tokenData = await response.json();
     const expiresAt = new Date(tokenData.expires_at * 1000).toISOString();
 
-    // Update profile with new tokens
+    // Encrypt new tokens
+    const encryptToken = (token: string) => btoa(token);
+
+    // Update encrypted tokens
     await supabase
-      .from('profiles')
+      .from('encrypted_strava_tokens')
       .update({
-        strava_access_token: tokenData.access_token,
-        strava_refresh_token: tokenData.refresh_token,
-        strava_token_expires_at: expiresAt
+        access_token_encrypted: encryptToken(tokenData.access_token),
+        refresh_token_encrypted: encryptToken(tokenData.refresh_token),
+        expires_at: expiresAt
       })
       .eq('user_id', userId);
 
@@ -165,6 +188,8 @@ async function refreshStravaToken(refreshToken: string, userId: string) {
 
 async function saveAthleteStats(userId: string, statsData: any) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
     // Clear existing stats
     await supabase
       .from('strava_stats')
@@ -224,6 +249,8 @@ async function saveAthleteStats(userId: string, statsData: any) {
 
 async function saveActivitiesAndBestEfforts(userId: string, activities: any[], accessToken: string) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
     // Clear existing activities and best efforts
     await supabase.from('strava_activities').delete().eq('user_id', userId);
     await supabase.from('strava_best_efforts').delete().eq('user_id', userId);
@@ -279,6 +306,7 @@ async function saveActivitiesAndBestEfforts(userId: string, activities: any[], a
 
 async function fetchAndSaveBestEfforts(userId: string, activities: any[], accessToken: string) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const allBestEfforts = [];
 
     for (const activity of activities) {

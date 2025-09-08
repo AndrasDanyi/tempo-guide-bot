@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      encrypted_strava_tokens: {
+        Row: {
+          access_token_encrypted: string
+          created_at: string
+          expires_at: string
+          id: string
+          refresh_token_encrypted: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          refresh_token_encrypted: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          refresh_token_encrypted?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      oauth_state_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          redirect_url: string | null
+          token: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          redirect_url?: string | null
+          token: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          redirect_url?: string | null
+          token?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age: number | null
@@ -37,11 +97,9 @@ export type Database = {
           race_name: string | null
           race_results: string | null
           race_surface: string | null
-          strava_access_token: string | null
           strava_athlete_id: string | null
           strava_connected: boolean | null
           strava_connected_at: string | null
-          strava_refresh_token: string | null
           strava_token_expires_at: string | null
           strength_notes: string | null
           time_limits: string | null
@@ -73,11 +131,9 @@ export type Database = {
           race_name?: string | null
           race_results?: string | null
           race_surface?: string | null
-          strava_access_token?: string | null
           strava_athlete_id?: string | null
           strava_connected?: boolean | null
           strava_connected_at?: string | null
-          strava_refresh_token?: string | null
           strava_token_expires_at?: string | null
           strength_notes?: string | null
           time_limits?: string | null
@@ -109,11 +165,9 @@ export type Database = {
           race_name?: string | null
           race_results?: string | null
           race_surface?: string | null
-          strava_access_token?: string | null
           strava_athlete_id?: string | null
           strava_connected?: boolean | null
           strava_connected_at?: string | null
-          strava_refresh_token?: string | null
           strava_token_expires_at?: string | null
           strength_notes?: string | null
           time_limits?: string | null
@@ -122,6 +176,36 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weight_kg?: number | null
+        }
+        Relationships: []
+      }
+      security_audit_log: {
+        Row: {
+          created_at: string
+          event_details: Json | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_details?: Json | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_details?: Json | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }

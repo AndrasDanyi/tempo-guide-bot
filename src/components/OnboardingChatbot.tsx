@@ -43,10 +43,20 @@ const OnboardingChatbot = ({ onProfileComplete, initialMessage = "Hi! I'm your A
   const requiredFields = ['full_name', 'goal', 'race_date', 'age', 'height'];
   const progressPercentage = ((requiredFields.length - missingRequired.length) / requiredFields.length) * 100;
 
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
+    const scrollToBottom = () => {
+      if (scrollAreaRef.current) {
+        const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (scrollElement) {
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+        }
+      }
+    };
+    
+    // Use setTimeout to ensure DOM is updated before scrolling
+    const timeoutId = setTimeout(scrollToBottom, 100);
+    return () => clearTimeout(timeoutId);
   }, [messages]);
 
   const sendMessage = async () => {
@@ -124,6 +134,7 @@ const OnboardingChatbot = ({ onProfileComplete, initialMessage = "Hi! I'm your A
         .insert({
           user_id: user!.id,
           email: user!.email,
+          units: extractedData.units || 'metric', // Default to metric system
           ...extractedData,
           // Convert string dates to proper format
           race_date: extractedData.race_date ? new Date(extractedData.race_date).toISOString().split('T')[0] : null,

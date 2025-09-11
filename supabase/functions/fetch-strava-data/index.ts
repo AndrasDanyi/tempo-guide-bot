@@ -91,7 +91,7 @@ serve(async (req) => {
 
     let page = 1;
     let allActivities = [];
-    const perPage = 100;
+    const perPage = 200; // Increased per page to get more activities faster
 
     while (true) {
       const activitiesResponse = await fetch(
@@ -104,18 +104,20 @@ serve(async (req) => {
       );
 
       if (!activitiesResponse.ok) {
-        throw new Error(`Failed to fetch activities: ${activitiesResponse.statusText}`);
+        console.error(`Failed to fetch activities page ${page}: ${activitiesResponse.statusText}`);
+        break;
       }
 
       const activities = await activitiesResponse.json();
+      console.log(`Fetched page ${page}: ${activities.length} activities`);
       
       if (activities.length === 0) break;
       
       allActivities.push(...activities);
       page++;
 
-      // Safety limit
-      if (page > 10) break;
+      // Stop after getting enough activities or safety limit
+      if (allActivities.length >= 500 || page > 5) break;
     }
 
     console.log(`Fetched ${allActivities.length} activities`);
@@ -255,10 +257,16 @@ async function saveActivitiesAndBestEfforts(userId: string, activities: any[], a
     await supabase.from('strava_activities').delete().eq('user_id', userId);
     await supabase.from('strava_best_efforts').delete().eq('user_id', userId);
 
-    // Filter and save running activities
+    // Filter and save running activities - be more inclusive with activity types
     const runningActivities = activities.filter(activity => 
-      activity.type === 'Run' || activity.sport_type === 'Run'
+      activity.type === 'Run' || 
+      activity.sport_type === 'Run' ||
+      activity.type === 'TrailRun' ||
+      activity.sport_type === 'TrailRun' ||
+      (activity.name && activity.name.toLowerCase().includes('run'))
     );
+
+    console.log(`Found ${runningActivities.length} running activities out of ${activities.length} total activities`);
 
     if (runningActivities.length === 0) {
       console.log('No running activities found');

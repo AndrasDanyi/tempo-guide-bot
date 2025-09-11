@@ -78,6 +78,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile }) => {
           .from('strava_activities')
           .select('*')
           .eq('user_id', profile.user_id)
+          .gte('start_date', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString()) // 6 months filter
           .order('start_date', { ascending: false })
           .limit(10),
         
@@ -257,9 +258,14 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile }) => {
           
           <TabsContent value="activities" className="space-y-3">
             {activities.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                No recent activities found
-              </p>
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-2">
+                  No recent running activities found in the last 6 months
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Try refreshing your Strava data or check if you have running activities on Strava
+                </p>
+              </div>
             ) : (
               activities.map((activity) => (
                 <div key={activity.id} className="border rounded-lg p-4 space-y-2">
@@ -297,9 +303,14 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile }) => {
           
           <TabsContent value="efforts" className="space-y-3">
             {bestEfforts.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">
-                No best efforts found
-              </p>
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-2">
+                  No personal records found
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Best efforts will appear here after you complete runs with achievements on Strava
+                </p>
+              </div>
             ) : (
               bestEfforts.map((effort) => (
                 <div key={effort.id} className="border rounded-lg p-4">

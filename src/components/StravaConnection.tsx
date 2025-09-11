@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,17 @@ const StravaConnection: React.FC<StravaConnectionProps> = ({ profile, onUpdate }
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+
+  // Check for connection success in URL and auto-refresh data
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('strava') === 'connected' && profile?.strava_connected) {
+      // Auto-refresh data after successful connection
+      handleRefreshData();
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [profile?.strava_connected]);
 
   const handleConnect = async () => {
     if (!profile?.user_id) {

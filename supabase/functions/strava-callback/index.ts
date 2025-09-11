@@ -135,25 +135,41 @@ serve(async (req) => {
 
     console.log('Strava connection successful for user:', userId);
 
-    // Create a user token for background data fetch
-    const { data: { session }, error: sessionError } = await supabase.auth.admin.generateLink({
-      type: 'magiclink',
-      email: '', // We'll use the user ID directly
-      options: { redirectTo: '/' }
-    });
+    console.log('Starting background Strava data fetch...');
+    
+    // Create a temporary service role token to fetch data immediately
+    try {
+      const { data: user } = await supabase.auth.admin.getUserById(userId);
+      
+      if (user.user) {
+        // Generate a temporary access token for the user
+        const { data, error: tokenError } = await supabase.auth.admin.generateAccessToken(userId);
+        
+        if (!tokenError && data.access_token) {
+          // Trigger immediate data fetch with user's token
+          const fetchResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-strava-data`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${data.access_token}`,
+              'Content-Type': 'application/json',
+              'apikey': Deno.env.get('SUPABASE_ANON_KEY')!
+            },
+            body: JSON.stringify({})
+          });
 
-    if (!sessionError && session) {
-      // Trigger data fetch in background with proper user auth
-      fetch(`${supabaseUrl}/functions/v1/fetch-strava-data`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}), // No userId needed - will get from auth
-      }).catch(error => {
-        console.error('Background data fetch failed:', error);
-      });
+          if (fetchResponse.ok) {
+            const fetchData = await fetchResponse.json();
+            console.log(`Initial Strava sync completed: ${fetchData.activitiesCount || 0} activities imported`);
+          } else {
+            const errorText = await fetchResponse.text();
+            console.error('Initial data fetch failed:', errorText);
+          }
+        } else {
+          console.error('Failed to generate access token for data fetch:', tokenError);
+        }
+      }
+    } catch (fetchError) {
+      console.error('Error during initial data fetch:', fetchError);
     }
 
     // Redirect back to the application

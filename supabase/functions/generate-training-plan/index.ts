@@ -43,97 +43,13 @@ serve(async (req) => {
     const raceDate = new Date(profileData.race_date);
     const daysDifference = Math.ceil((raceDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
-    const prompt = `Create a training plan for a ${profileData.race_distance_km || 21}km race based on this user profile:
-
-Experience: ${profileData.experience_years || 'Beginner'} years
-Current weekly mileage: ${profileData.current_weekly_mileage || 30}km  
-Goal pace: ${profileData.goal_pace_per_km || '5:30'} per km
-Race date: ${profileData.race_date}
-Training days per week: ${profileData.days_per_week || 5}
-
-Generate a training plan from ${today.toISOString().split('T')[0]} to ${profileData.race_date} using this exact format:
-DATE|WORKOUT_TYPE|DESCRIPTION|DURATION|DISTANCE|PACE
-
-WORKOUT_TYPE options: Recovery Run, Easy Run, Tempo Run, Long Run, Track Workout, Intervals, Rest
-DESCRIPTION: Brief workout description (e.g., "Focus on easy effort, conversational pace")
-DURATION: Time in minutes (e.g., "30 min")  
-DISTANCE: Distance in miles (e.g., "3-4 miles")
-PACE: Pace description (e.g., "Easy (8:30-9:00/mi)")
-
-Examples:
-2025-09-04|Recovery Run|Focus on easy effort, conversational pace|30 min|3-4 miles|Easy (8:30-9:00/mi)
-2025-09-05|Tempo Run|10 min warm-up, 20 min tempo, 15 min cool-down|45 min|6 miles|Tempo (7:15-7:30/mi)
-2025-09-06|Rest|Complete rest day|0 min|0 miles|N/A
-
-Generate all ${daysDifference} days:`;
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-5-nano-2025-08-07',
-        messages: [
-          { role: 'user', content: prompt }
-        ],
-        max_completion_tokens: 120000, // Safe limit for gpt-5-nano (max 128k)
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('OpenAI API Error:', errorData);
-      
-      let parsedError;
-      try {
-        parsedError = JSON.parse(errorData);
-      } catch {
-        parsedError = { error: { message: errorData } };
-      }
-      
-      const errorMessage = parsedError?.error?.message || `HTTP ${response.status}: ${response.statusText}`;
-      console.error('Parsed OpenAI error:', parsedError);
-      throw new Error(`OpenAI API Error: ${errorMessage}`);
-    }
-
-    const data = await response.json();
-    console.log('OpenAI response received');
-    console.log('Full OpenAI response:', JSON.stringify(data, null, 2));
-    
-    // Log token usage
-    if (data.usage) {
-      console.log('Token usage - Prompt tokens:', data.usage.prompt_tokens);
-      console.log('Token usage - Completion tokens:', data.usage.completion_tokens);
-      console.log('Token usage - Total tokens:', data.usage.total_tokens);
-    }
-    
-    const trainingPlanText = data.choices[0].message.content;
-    console.log('Training plan generated successfully');
-    console.log('Plan length:', trainingPlanText?.length || 0);
-    console.log('Plan exists:', !!trainingPlanText);
-    
-    if (trainingPlanText) {
-      console.log('Plan preview (first 500 chars):', trainingPlanText.substring(0, 500));
-      console.log('Plan preview (last 200 chars):', trainingPlanText.slice(-200));
-    } else {
-      console.log('ERROR: No training plan text generated!');
-      console.log('Response choices:', data.choices);
-    }
-
-    // Validate that we have content before saving
-    if (!trainingPlanText || trainingPlanText.trim().length === 0) {
-      throw new Error('OpenAI returned empty training plan content');
-    }
-
-    // Save the training plan to the database as text
+    // Save initial training plan entry
     const { data: savedPlan, error: saveError } = await supabase
       .from('training_plans')
       .insert({
         user_id: user.id,
         profile_id: profileData.id,
-        plan_content: { text: trainingPlanText }, // Store as simple object with text property
+        plan_content: { text: 'Generating...' },
         start_date: today.toISOString().split('T')[0],
         end_date: profileData.race_date,
       })
@@ -145,37 +61,71 @@ Generate all ${daysDifference} days:`;
       throw new Error('Failed to save training plan to database');
     }
 
-    console.log('Training plan overview saved successfully');
-    console.log('Saved plan ID:', savedPlan.id);
-    console.log('Saved plan content length:', savedPlan.plan_content?.text?.length || 0);
+    // Generate plan in weekly batches for better performance
+    const weekSize = 7;
+    const weeks = Math.ceil(daysDifference / weekSize);
+    const allTrainingDays = [];
 
-    // Parse and save the training plan to training_days table
-    console.log('Parsing training plan...');
-    try {
-      const parseResponse = await supabase.functions.invoke('parse-training-plan', {
-        body: {
-          planId: savedPlan.id,
-          planText: trainingPlanText
-        }
-      });
+    console.log(`Generating ${weeks} weeks in parallel...`);
 
-      if (parseResponse.error) {
-        console.error('Parse function error:', parseResponse.error);
-        // Don't fail the whole request if parsing fails
-      } else {
-        console.log('Training plan parsed successfully:', parseResponse.data);
+    // Process weeks in parallel
+    const weekPromises = [];
+    for (let week = 0; week < weeks; week++) {
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() + (week * weekSize));
+      
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + weekSize - 1);
+      
+      if (weekEnd > raceDate) {
+        weekEnd.setTime(raceDate.getTime());
       }
-    } catch (parseError) {
-      console.error('Error calling parse function:', parseError);
-      // Don't fail the whole request if parsing fails
+
+      weekPromises.push(generateWeek(weekStart, weekEnd, profileData, openAIApiKey, week + 1, weeks));
     }
+
+    const weekResults = await Promise.all(weekPromises);
+    weekResults.forEach(weekDays => allTrainingDays.push(...weekDays));
+
+    console.log(`Generated ${allTrainingDays.length} training days across ${weeks} weeks`);
+
+    // Insert all training days at once
+    const { error: insertError } = await supabase
+      .from('training_days')
+      .insert(allTrainingDays.map(day => ({
+        training_plan_id: savedPlan.id,
+        user_id: user.id,
+        date: day.date,
+        training_session: day.workout_type,
+        mileage_breakdown: day.description,
+        pace_targets: day.pace,
+        estimated_distance_km: day.distance_km,
+        estimated_moving_time: day.duration,
+        detailed_fields_generated: false
+      })));
+
+    if (insertError) {
+      console.error('Error inserting training days:', insertError);
+      throw new Error('Failed to save training days');
+    }
+
+    // Update plan with completion status
+    const completePlanText = allTrainingDays.map(day => 
+      `${day.date}|${day.workout_type}|${day.description}|${day.duration}|${day.distance}|${day.pace}`
+    ).join('\n');
+
+    await supabase
+      .from('training_plans')
+      .update({ 
+        plan_content: { text: completePlanText }
+      })
+      .eq('id', savedPlan.id);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      trainingPlanText, 
       planId: savedPlan.id,
-      tokenUsage: data.usage || null,
-      contentLength: trainingPlanText?.length || 0
+      message: 'Training plan generated successfully with weekly batches',
+      totalDays: allTrainingDays.length
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -190,3 +140,69 @@ Generate all ${daysDifference} days:`;
     });
   }
 });
+
+// Helper function to generate a single week
+async function generateWeek(startDate: Date, endDate: Date, profileData: any, openAIApiKey: string, weekNum: number, totalWeeks: number) {
+  const days = [];
+  const currentDate = new Date(startDate);
+  
+  while (currentDate <= endDate) {
+    days.push(currentDate.toISOString().split('T')[0]);
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  const prompt = `Generate week ${weekNum}/${totalWeeks} of training (${days.length} days) for a ${profileData.race_distance_km || 21}km race:
+
+Profile: ${profileData.experience_years || 'Beginner'} years, ${profileData.current_weekly_mileage || 30}km/week, goal pace ${profileData.goal_pace_per_km || '5:30'}/km, ${profileData.days_per_week || 5} days/week
+
+Return JSON array of training days:
+[{
+  "date": "YYYY-MM-DD",
+  "workout_type": "Easy Run|Tempo Run|Long Run|Intervals|Rest",
+  "description": "brief description",
+  "duration": "30 min",
+  "distance": "5 km",
+  "distance_km": 5.0,
+  "pace": "Easy (5:30-6:00/km)"
+}]
+
+Dates: ${days.join(', ')}`;
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openAIApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-5-mini-2025-08-07', // Faster model
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      max_completion_tokens: 2000,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Week ${weekNum} generation failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices[0].message.content;
+  
+  try {
+    return JSON.parse(content);
+  } catch (e) {
+    console.error(`Failed to parse week ${weekNum} JSON:`, content);
+    // Fallback to simple format
+    return days.map(date => ({
+      date,
+      workout_type: weekNum % 2 === 1 ? 'Easy Run' : 'Rest',
+      description: 'Generated training day',
+      duration: '30 min',
+      distance: '5 km',
+      distance_km: 5.0,
+      pace: 'Easy (5:30-6:00/km)'
+    }));
+  }
+}

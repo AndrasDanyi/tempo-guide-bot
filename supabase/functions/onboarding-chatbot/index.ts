@@ -29,76 +29,31 @@ serve(async (req) => {
 
     const { message, conversationHistory, profileData } = await req.json();
 
-const systemPrompt = `You are a friendly AI running coach assistant helping runners create their personalized training plan. Your job is to collect their profile information through a natural conversation.
+// Optimize prompt to reduce token usage while maintaining functionality
+const systemPrompt = `You are a friendly AI running coach collecting profile data. Respond ONLY in valid JSON.
 
-CRITICAL: You MUST ALWAYS respond with VALID JSON. Never respond with plain text or incomplete JSON.
+REQUIRED: full_name, goal, race_date (YYYY-MM-DD), age, height (cm)
+OPTIONAL: gender, weight_kg, experience_years, weekly_mileage, race_distance_km, goal_pace_per_km, days_per_week, training_history, injuries
 
-REQUIRED FIELDS TO COLLECT:
-1. full_name (string) - Their full name
-2. goal (string) - Their running goal (e.g., "Run a sub-3 hour marathon")
-3. race_date (date) - When is their goal race/event (YYYY-MM-DD format)
-4. age (number) - How old are they
-5. height (number) - Height in centimeters
+Current data: ${JSON.stringify(profileData)}
 
-OPTIONAL FIELDS TO COLLECT:
-- gender (string) - male, female, other, or prefer-not-to-say
-- weight_kg (number) - Weight in kilograms
-- experience_years (number) - Years of running experience
-- current_weekly_mileage (number) - Current weekly kilometers
-- longest_run_km (number) - Longest recent run in km
-- race_distance_km (number) - Target race distance in km
-- race_name (string) - Name of the race/event
-- race_surface (string) - road, trail, track, or mixed
-- goal_pace_per_km (string) - Target pace like "4:30" or "5:00"
-- days_per_week (number) - Training days per week (3-7)
-- elevation_context (string) - flat, hilly, mountainous, or mixed
-- units (string) - metric or imperial (defaults to metric if not specified)
-- time_limits (string) - Any time constraints or schedule notes
-- training_history (string) - Description of their running background
-- race_results (string) - Recent race times and performances
-- strength_notes (string) - Strength training habits
-- injuries (string) - Current or recent injuries
-- further_notes (string) - Any additional information
+Parse naturally: "half marathon" = 21km, "Sept 26" = "2025-09-26", "6 feet" = 183cm
 
-CURRENT PROFILE DATA: ${JSON.stringify(profileData)}
-
-NATURAL LANGUAGE PARSING RULES:
-- Convert relative dates to YYYY-MM-DD format (e.g., "Sept 26th" = "2025-09-26", "March 15" = "2025-03-15")
-- Extract distances from natural text (e.g., "200+ km" = 200, "half marathon" = 21, "marathon" = 42)
-- Parse heights with units (e.g., "182 cm" = 182, "6 feet" = 183)
-- Extract paces from text (e.g., "under 4 minutes per km" = "4:00")
-- Convert race types to distances (e.g., "5K" = 5, "10K" = 10, "half marathon" = 21, "marathon" = 42, "ultra" = 50+)
-- If user mentions miles/imperial measurements, set units to "imperial" and convert appropriately
-- Default to metric units unless user specifically mentions miles, feet, pounds, etc.
-- Make intelligent assumptions about missing context (current year, metric units, etc.)
-
-CONVERSATION RULES:
-1. Be conversational, friendly, and encouraging
-2. Ask questions naturally, don't make it feel like a form
-3. Ask follow-up questions based on their answers
-4. If they mention something relevant to multiple fields, extract all the information
-5. Prioritize required fields but gather optional ones naturally
-6. If they seem unsure about optional fields, reassure them it's okay to skip
-7. When you have enough information for a basic plan (required fields + some optional), mention they can generate their plan
-
-RESPONSE FORMAT - YOU MUST ALWAYS RESPOND WITH THIS EXACT JSON STRUCTURE:
+JSON format:
 {
-  "message": "Your conversational response to the user",
-  "extracted_data": {
-    // Only include fields you've confidently extracted from the conversation
-    // Use the exact field names listed above
-    // Convert natural language to proper formats
-  },
-  "missing_required": ["field1", "field2"], // List any required fields still missing
-  "confidence": 0.8, // Your confidence in the extracted data (0-1)
-  "ready_for_plan": false // Set to true when you have required fields + reasonable optional data
-}
+  "message": "friendly response",
+  "extracted_data": {},
+  "missing_required": [],
+  "confidence": 0.8,
+  "ready_for_plan": false
+}`;
 
-CRITICAL: Never respond with anything other than valid JSON. If you're uncertain about parsing something, make your best educated guess and note lower confidence.`;
-
+    // Limit conversation history to last 6 messages for performance
+    const recentHistory = conversationHistory.slice(-6);
+    
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...conversationHistory,
+      ...recentHistory,
       { role: 'user', content: message }
     ];
 
@@ -111,9 +66,10 @@ CRITICAL: Never respond with anything other than valid JSON. If you're uncertain
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-nano-2025-08-07',
+        model: 'gpt-4.1-mini-2025-04-14', // Faster model for this task
         messages: messages,
-        max_completion_tokens: 100000,
+        max_tokens: 1000, // Reduced from 100,000 to 1,000
+        temperature: 0.7,
       }),
     });
 

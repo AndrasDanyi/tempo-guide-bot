@@ -79,6 +79,11 @@ const Index = () => {
           console.log('Training plan loaded:', planData.id);
         } else {
           console.log('No training plan found or error:', planError);
+          // If user has complete profile but no training plan, generate one automatically
+          if (hasCompleteMandatoryProfile(profileData)) {
+            console.log('Complete profile found, generating training plan automatically');
+            await generateTrainingPlan(profileData);
+          }
         }
       }
     } catch (error) {
@@ -87,6 +92,16 @@ const Index = () => {
     } finally {
       setLoadingData(false);
     }
+  };
+
+  // Check if profile has all mandatory fields for training plan generation
+  const hasCompleteMandatoryProfile = (profileData: any) => {
+    return profileData && 
+           profileData.goal && 
+           profileData.race_date && 
+           profileData.race_distance_km && 
+           profileData.current_weekly_mileage && 
+           profileData.days_per_week;
   };
 
   const generateTrainingPlan = async (profileData: any) => {
@@ -204,7 +219,7 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {!profile ? (
+        {!profile || !hasCompleteMandatoryProfile(profile) ? (
           <div>
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold mb-4">Welcome to Your AI Running Coach!</h2>
@@ -309,20 +324,6 @@ const Index = () => {
               </div>
             </div>
             
-            {/* Debug info */}
-            <div className="mb-4 p-4 bg-muted rounded text-xs">
-              <p><strong>Debug Info:</strong></p>
-              <p>Training Plan exists: {trainingPlan ? 'Yes' : 'No'}</p>
-              {trainingPlan && (
-                <>
-                  <p>Plan ID: {trainingPlan.id}</p>
-                  <p>Plan content type: {typeof trainingPlan.plan_content}</p>
-                  <p>Has text property: {trainingPlan.plan_content?.text ? 'Yes' : 'No'}</p>
-                  <p>Content length: {trainingPlan.plan_content?.text?.length || 0} chars</p>
-                  <p>Content preview: {trainingPlan.plan_content?.text?.substring(0, 200)}...</p>
-                </>
-              )}
-            </div>
             
             {trainingPlan?.plan_content?.text ? (
               <>

@@ -71,7 +71,7 @@ Pace: ${dayData.pace_targets || 'Easy effort'}`;
           { role: 'system', content: 'You are a running coach. Generate detailed training information in the exact format requested. Be concise and practical.' },
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 50000,
+        max_completion_tokens: 2000,
       }),
     });
 

@@ -67,10 +67,10 @@ JSON format:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-mini-2025-04-14', // Faster model for this task
+        model: 'gpt-4.1-mini-2025-04-14',
         messages: messages,
-        max_tokens: 1000, // Reduced from 100,000 to 1,000
-        temperature: 0.7,
+        max_completion_tokens: 2000, // Use correct parameter for GPT-4.1+
+        // temperature not supported in GPT-4.1+ models
       }),
     });
 

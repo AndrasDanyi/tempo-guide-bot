@@ -71,14 +71,14 @@ Pace: ${dayData.pace_targets || 'Easy effort'}`;
           { role: 'system', content: 'You are a running coach. Generate detailed training information in the exact format requested. Be concise and practical.' },
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 50000,
+        max_completion_tokens: 4096,
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.text();
       console.error('OpenAI API Error:', errorData);
-      throw new Error(`OpenAI API Error: ${response.status}`);
+      throw new Error(`OpenAI API Error: ${response.status} - ${errorData}`);
     }
 
     const data = await response.json();

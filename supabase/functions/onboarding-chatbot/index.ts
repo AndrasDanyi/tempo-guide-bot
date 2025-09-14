@@ -67,22 +67,47 @@ JSON format:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-mini-2025-04-14', // Faster model for this task
+        model: 'gpt-4.1-mini-2025-04-14',
         messages: messages,
-        max_tokens: 1000, // Reduced from 100,000 to 1,000
-        temperature: 0.7,
+        max_completion_tokens: 4096, // Aim high; retry logic handles caps
+        // temperature not supported in GPT-4.1+ models
       }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('OpenAI API Error Status:', response.status);
-      console.error('OpenAI API Error Response:', errorData);
-      throw new Error(`OpenAI API Error: ${response.status} - ${errorData}`);
-    }
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('OpenAI API Error Status:', response.status);
+        console.error('OpenAI API Error Response:', errorData);
+        // If the error complains about max token cap, retry with the allowed value
+        const match = errorData.match(/max_completion_tokens[^\d]*(\d+)/i);
+        if (match) {
+          const allowed = parseInt(match[1], 10);
+          console.log(`Retrying with max_completion_tokens=${allowed}`);
+          const retry = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openAIApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'gpt-4.1-mini-2025-04-14',
+              messages: messages,
+              max_completion_tokens: allowed,
+            }),
+          });
+          if (!retry.ok) {
+            const retryText = await retry.text();
+            throw new Error(`OpenAI API Error: ${retry.status} - ${retryText}`);
+          }
+          const retryData = await retry.json();
+          data = retryData; // use retried response
+        } else {
+          throw new Error(`OpenAI API Error: ${response.status} - ${errorData}`);
+        }
+      }
 
-    const data = await response.json();
-    const assistantMessage = data.choices[0].message.content;
+      let data = await response.json();
+      const assistantMessage = data.choices[0].message.content;
 
     console.log('AI Response:', assistantMessage);
 

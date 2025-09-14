@@ -134,14 +134,14 @@ Make all recommendations specific to the training session type, user profile, an
           },
           { role: 'user', content: prompt }
         ],
-        max_completion_tokens: 1000,
+        max_completion_tokens: 4096,
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.text();
       console.error('OpenAI API Error:', errorData);
-      throw new Error(`OpenAI API Error: ${response.status}`);
+      throw new Error(`OpenAI API Error: ${response.status} - ${errorData}`);
     }
 
     const data = await response.json();

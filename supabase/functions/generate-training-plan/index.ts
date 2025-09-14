@@ -179,12 +179,52 @@ Dates: ${days.join(', ')}`;
       messages: [
         { role: 'user', content: prompt }
       ],
-      max_completion_tokens: 2000,
+      max_completion_tokens: 8192,
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Week ${weekNum} generation failed: ${response.status}`);
+    const errorData = await response.text();
+    console.error(`Week ${weekNum} OpenAI error:`, errorData);
+    // Retry with allowed token limit if the error indicates a max token cap
+    const match = errorData.match(/max_completion_tokens[^\d]*(\d+)/i);
+    if (match) {
+      const allowed = parseInt(match[1], 10);
+      console.log(`Retrying week ${weekNum} with max_completion_tokens=${allowed}`);
+      const retry = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-5-mini-2025-08-07',
+          messages: [ { role: 'user', content: prompt } ],
+          max_completion_tokens: allowed,
+        }),
+      });
+      if (!retry.ok) {
+        const retryText = await retry.text();
+        throw new Error(`Week ${weekNum} generation failed after retry: ${retry.status} - ${retryText}`);
+      }
+      const retryData = await retry.json();
+      const retryContent = retryData.choices[0].message.content;
+      try {
+        return JSON.parse(retryContent);
+      } catch (e) {
+        console.error(`Failed to parse retried week ${weekNum} JSON:`, retryContent);
+        return days.map(date => ({
+          date,
+          workout_type: weekNum % 2 === 1 ? 'Easy Run' : 'Rest',
+          description: 'Generated training day',
+          duration: '30 min',
+          distance: '5 km',
+          distance_km: 5.0,
+          pace: 'Easy (5:30-6:00/km)'
+        }));
+      }
+    }
+    throw new Error(`Week ${weekNum} generation failed: ${response.status} - ${errorData}`);
   }
 
   const data = await response.json();

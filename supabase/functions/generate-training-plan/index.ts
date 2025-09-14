@@ -38,10 +38,23 @@ serve(async (req) => {
 
     console.log('Generating training plan for user:', user.id);
 
-    // Calculate days between today and race day
+    // Calculate days between today and race day, with fallback if race_date is in the past
     const today = new Date();
-    const raceDate = new Date(profileData.race_date);
-    const daysDifference = Math.ceil((raceDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+    const originalRaceDate = new Date(profileData.race_date);
+    let targetDate = new Date(originalRaceDate);
+    let daysDifference = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+
+    if (!isFinite(daysDifference) || isNaN(daysDifference)) {
+      throw new Error('Invalid race_date');
+    }
+
+    // If race date is past or today, default to a 12-week plan from today
+    if (daysDifference < 1) {
+      daysDifference = 7 * 12; // 12 weeks
+      targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + daysDifference);
+      console.log('Race date in the past; defaulting to 12-week plan ending on', targetDate.toISOString().split('T')[0]);
+    }
 
     // Save initial training plan entry
     const { data: savedPlan, error: saveError } = await supabase
@@ -51,7 +64,7 @@ serve(async (req) => {
         profile_id: profileData.id,
         plan_content: { text: 'Generating...' },
         start_date: today.toISOString().split('T')[0],
-        end_date: profileData.race_date,
+        end_date: targetDate.toISOString().split('T')[0],
       })
       .select()
       .single();
@@ -77,8 +90,8 @@ serve(async (req) => {
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + weekSize - 1);
       
-      if (weekEnd > raceDate) {
-        weekEnd.setTime(raceDate.getTime());
+      if (weekEnd > targetDate) {
+        weekEnd.setTime(targetDate.getTime());
       }
 
       weekPromises.push(generateWeek(weekStart, weekEnd, profileData, openAIApiKey, week + 1, weeks));

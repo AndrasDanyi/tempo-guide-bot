@@ -128,52 +128,36 @@ const OnboardingChatbot = ({ onProfileComplete, initialMessage = "Hi! I'm your A
     if (!isReadyForPlan) return;
 
     try {
-      // Prepare profile payload with correct column mapping
-      const toSave: any = {
-        user_id: user!.id,
-        email: user!.email,
-        units: extractedData.units || 'metric',
-        full_name: extractedData.full_name,
-        goal: extractedData.goal,
-        race_date: extractedData.race_date ? new Date(extractedData.race_date).toISOString().split('T')[0] : null,
-        race_distance_km: extractedData.race_distance_km,
-        age: extractedData.age,
-        height: extractedData.height,
-        weight_kg: extractedData.weight_kg,
-        gender: extractedData.gender,
-        experience_years: extractedData.experience_years,
-        days_per_week: extractedData.days_per_week,
-        goal_pace_per_km: extractedData.goal_pace_per_km,
-        // Map weekly_mileage -> current_weekly_mileage (DB column)
-        current_weekly_mileage: extractedData.current_weekly_mileage ?? extractedData.weekly_mileage ?? null,
-      };
-
-      // Remove undefined to avoid overwriting with nulls unnecessarily
-      Object.keys(toSave).forEach((k) => (toSave[k] === undefined ? delete toSave[k] : null));
-
-      // Upsert profile (insert or update by user_id)
-      const { data: profile, error: upsertError } = await supabase
+      // Save profile data to database
+      const { data: profile, error } = await supabase
         .from('profiles')
-        .upsert(toSave, { onConflict: 'user_id' })
+        .insert({
+          user_id: user!.id,
+          email: user!.email,
+          units: extractedData.units || 'metric', // Default to metric system
+          ...extractedData,
+          // Convert string dates to proper format
+          race_date: extractedData.race_date ? new Date(extractedData.race_date).toISOString().split('T')[0] : null,
+        })
         .select()
         .single();
 
-      if (upsertError) {
-        throw upsertError;
+      if (error) {
+        throw error;
       }
 
       toast({
-        title: 'Profile saved!',
-        description: 'Generating your personalized training plan...',
+        title: "Profile saved!",
+        description: "Generating your personalized training plan...",
       });
 
       onProfileComplete(profile);
     } catch (error) {
       console.error('Error saving profile:', error);
       toast({
-        title: 'Error saving profile',
-        description: 'Please try again. If the problem persists, contact support.',
-        variant: 'destructive',
+        title: "Error saving profile",
+        description: "Please try again. If the problem persists, contact support.",
+        variant: "destructive",
       });
     }
   };

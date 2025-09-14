@@ -68,7 +68,7 @@ serve(async (req) => {
 
     // Fetch athlete stats
     console.log('Fetching athlete stats...');
-    const statsResponse = await fetch('https://www.strava.com/api/v3/athlete/stats', {
+    const statsResponse = await fetch('https://www.strava.com/api/v3/athletes/stats', {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
       },

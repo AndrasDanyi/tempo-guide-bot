@@ -497,10 +497,22 @@ const EditProfileDialog = ({ isOpen, onClose, profile, onProfileUpdated }: EditP
               <h3 className="text-lg font-medium mb-4">Strava Integration</h3>
               <StravaConnection 
                 profile={profile} 
-                onUpdate={() => {
-                  // Optionally refresh profile data after Strava connection changes
-                  if (onProfileUpdated && profile) {
-                    onProfileUpdated(profile);
+                onUpdate={async () => {
+                  // Refresh profile data after Strava connection changes
+                  // We need to fetch the updated profile from the database
+                  // but we'll let handleProfileUpdated decide if plan regeneration is needed
+                  try {
+                    const { data: updatedProfile } = await supabase
+                      .from('profiles')
+                      .select('*')
+                      .eq('user_id', profile.user_id)
+                      .single();
+                    
+                    if (updatedProfile && onProfileUpdated) {
+                      onProfileUpdated(updatedProfile);
+                    }
+                  } catch (error) {
+                    console.error('Error fetching updated profile:', error);
                   }
                 }} 
               />

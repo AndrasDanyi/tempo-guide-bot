@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Target, Calendar } from 'lucide-react';
+import { formatDate, formatDateWithDay, parseTrainingPlanDate } from '@/lib/dateUtils';
 
 interface TrainingPlanDisplayProps {
   trainingPlan: string;
@@ -34,24 +35,36 @@ const TrainingPlanDisplay = ({ trainingPlan, profile }: TrainingPlanDisplayProps
       // Day entries (look for date patterns)
       if (trimmedLine.match(/^\d{4}-\d{2}-\d{2}/)) {
         const [datePart, ...restParts] = trimmedLine.split(' - ');
-        const date = new Date(datePart);
-        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
-        const formattedDate = date.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric' 
-        });
+        const date = parseTrainingPlanDate(datePart);
         
-        formattedLines.push(
-          <div key={index} className="bg-secondary/50 rounded-lg p-4 mb-3 border border-border">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-semibold text-primary">
-                {dayOfWeek}, {formattedDate}
-              </h4>
-              <span className="text-xs text-muted-foreground">{datePart}</span>
+        if (date) {
+          const formattedDateWithDay = formatDateWithDay(date);
+          
+          formattedLines.push(
+            <div key={index} className="bg-secondary/50 rounded-lg p-4 mb-3 border border-border">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold text-primary">
+                  {formattedDateWithDay}
+                </h4>
+                <span className="text-xs text-muted-foreground">{datePart}</span>
+              </div>
+              <p className="text-sm">{restParts.join(' - ')}</p>
             </div>
-            <p className="text-sm">{restParts.join(' - ')}</p>
-          </div>
-        );
+          );
+        } else {
+          // Fallback for invalid dates
+          formattedLines.push(
+            <div key={index} className="bg-secondary/50 rounded-lg p-4 mb-3 border border-border">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold text-primary">
+                  Training Day
+                </h4>
+                <span className="text-xs text-muted-foreground">{datePart}</span>
+              </div>
+              <p className="text-sm">{restParts.join(' - ')}</p>
+            </div>
+          );
+        }
         return;
       }
 
@@ -117,7 +130,7 @@ const TrainingPlanDisplay = ({ trainingPlan, profile }: TrainingPlanDisplayProps
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">
-                <strong>Race Date:</strong> {new Date(profile.race_date).toLocaleDateString()}
+                <strong>Race Date:</strong> {formatDate(profile.race_date)}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -167,7 +180,7 @@ const TrainingPlanDisplay = ({ trainingPlan, profile }: TrainingPlanDisplayProps
               <h4 className="font-semibold text-lg text-primary mb-3">Race & Goals</h4>
               <div className="space-y-2 text-sm">
                 <div><strong>Goal:</strong> {profile.goal}</div>
-                <div><strong>Race Date:</strong> {new Date(profile.race_date).toLocaleDateString()}</div>
+                <div><strong>Race Date:</strong> {formatDate(profile.race_date)}</div>
                 <div><strong>Race Name:</strong> {profile.race_name || "Not specified"}</div>
                 <div><strong>Race Distance:</strong> {profile.race_distance_km ? `${profile.race_distance_km} km` : "Not specified"}</div>
                 <div><strong>Target Pace:</strong> {profile.goal_pace_per_km || "Not specified"}</div>

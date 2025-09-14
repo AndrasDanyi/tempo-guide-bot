@@ -35,19 +35,34 @@ const StravaConnection: React.FC<StravaConnectionProps> = ({ profile, onUpdate }
     setIsConnecting(true);
     
     try {
+      console.log('Starting Strava connection process...');
+      console.log('Profile user_id:', profile.user_id);
+      console.log('Redirect URL:', window.location.origin);
+      
+      // For localhost development, we need to use a public URL for Strava redirect
+      // You can either deploy your app or use ngrok to get a public URL
+      const redirectUrl = window.location.origin.includes('localhost') 
+        ? 'https://your-app-domain.com' // Replace with your deployed app URL
+        : window.location.origin;
+      
+      console.log('Using redirect URL:', redirectUrl);
+      
       const { data, error } = await supabase.functions.invoke('strava-auth', {
         body: {
-          redirectUrl: window.location.origin
+          redirectUrl: redirectUrl
         }
       });
 
+      console.log('Strava auth response:', { data, error });
+
       if (error) {
         console.error('Error getting Strava auth URL:', error);
-        toast.error('Failed to connect to Strava. Please try again.');
+        toast.error(`Failed to connect to Strava: ${error.message || 'Unknown error'}`);
         return;
       }
 
       if (data?.authUrl) {
+        console.log('Redirecting to Strava auth URL:', data.authUrl);
         // Open Strava authorization in current window
         window.location.href = data.authUrl;
       } else {
@@ -56,7 +71,7 @@ const StravaConnection: React.FC<StravaConnectionProps> = ({ profile, onUpdate }
 
     } catch (error) {
       console.error('Error connecting to Strava:', error);
-      toast.error('Failed to connect to Strava. Please try again.');
+      toast.error(`Failed to connect to Strava: ${error.message || 'Unknown error'}`);
     } finally {
       setIsConnecting(false);
     }
@@ -66,6 +81,9 @@ const StravaConnection: React.FC<StravaConnectionProps> = ({ profile, onUpdate }
     setIsDisconnecting(true);
     
     try {
+      console.log('Starting Strava disconnection process...');
+      console.log('Profile user_id:', profile.user_id);
+      
       // Clear profile connection status
       const { error: profileError } = await supabase
         .from('profiles')
@@ -82,13 +100,22 @@ const StravaConnection: React.FC<StravaConnectionProps> = ({ profile, onUpdate }
         return;
       }
 
+      console.log('Profile updated successfully');
+
       // Clear encrypted tokens
-      await supabase.from('encrypted_strava_tokens').delete().eq('user_id', profile.user_id);
+      const { error: tokenError } = await supabase.from('encrypted_strava_tokens').delete().eq('user_id', profile.user_id);
+      if (tokenError) {
+        console.error('Error clearing tokens:', tokenError);
+      } else {
+        console.log('Tokens cleared successfully');
+      }
 
       // Clear Strava data
-      await supabase.from('strava_activities').delete().eq('user_id', profile.user_id);
-      await supabase.from('strava_best_efforts').delete().eq('user_id', profile.user_id);
-      await supabase.from('strava_stats').delete().eq('user_id', profile.user_id);
+      const { error: activitiesError } = await supabase.from('strava_activities').delete().eq('user_id', profile.user_id);
+      const { error: effortsError } = await supabase.from('strava_best_efforts').delete().eq('user_id', profile.user_id);
+      const { error: statsError } = await supabase.from('strava_stats').delete().eq('user_id', profile.user_id);
+      
+      console.log('Data clearing results:', { activitiesError, effortsError, statsError });
 
       toast.success('Successfully disconnected from Strava');
       onUpdate();

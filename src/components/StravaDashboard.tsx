@@ -1,79 +1,134 @@
+// ============================================================================
+// STRAVA DASHBOARD COMPONENT
+// ============================================================================
+// This component displays the user's Strava training data in a beautiful dashboard
+// It shows:
+// - Training statistics overview (runs, distance, time, elevation)
+// - Recent running activities with detailed metrics
+// - Personal records and best efforts
+// - Manual sync functionality to fetch latest data from Strava
+
+// React hooks for managing component state and side effects
 import React, { useState, useEffect } from 'react';
+
+// UI Components from our design system (shadcn/ui)
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Supabase client for database operations
 import { supabase } from "@/integrations/supabase/client";
+
+// Toast notifications for user feedback
 import { toast } from "sonner";
+
+// Icons from Lucide React for consistent UI
 import { 
-  Activity, 
-  Calendar, 
-  TrendingUp, 
-  Clock, 
-  MapPin, 
-  Heart,
-  Trophy,
-  Target,
-  Zap
+  Activity,    // For activity-related icons
+  Calendar,    // For date/time displays
+  TrendingUp,  // For pace/speed metrics
+  Clock,       // For duration/time displays
+  MapPin,      // For distance/location
+  Heart,       // For heart rate data
+  Trophy,      // For achievements/PRs
+  Target,      // For goals/targets
+  Zap,         // For Strava branding and sync actions
+  Loader2      // For loading states
 } from "lucide-react";
 
+// ============================================================================
+// TYPE DEFINITIONS (TypeScript Interfaces)
+// ============================================================================
+// These define the structure of our data to ensure type safety
+
+// Props that this component receives from its parent
 interface StravaDashboardProps {
-  profile: any;
+  profile: any;                    // User's profile data (contains Strava connection status)
+  onStravaDataSynced?: () => void; // Optional callback when Strava data is successfully synced
 }
 
+// Structure of Strava training statistics (recent, year-to-date, all-time)
 interface StravaStats {
-  period_type: string;
-  count: number;
-  distance: number;
-  moving_time: number;
-  elevation_gain: number;
-  achievement_count: number;
+  period_type: string;    // "recent", "ytd", or "all"
+  count: number;          // Number of runs
+  distance: number;       // Total distance in meters
+  moving_time: number;    // Total moving time in seconds
+  elevation_gain: number; // Total elevation gain in meters
+  achievement_count: number; // Number of achievements/PRs
 }
 
+// Structure of individual Strava activities (runs, rides, etc.)
 interface StravaActivity {
-  id: string;
-  name: string;
-  activity_type: string;
-  start_date: string;
-  distance: number;
-  moving_time: number;
-  average_speed: number;
-  average_heartrate?: number;
-  total_elevation_gain?: number;
-  suffer_score?: number;
+  id: string;                    // Unique activity ID
+  name: string;                  // Activity name (e.g., "Morning Run")
+  activity_type: string;         // Type of activity (Run, Ride, etc.)
+  start_date: string;            // When the activity started
+  distance: number;              // Distance in meters
+  moving_time: number;           // Moving time in seconds
+  average_speed: number;         // Average speed in meters per second
+  average_heartrate?: number;    // Average heart rate (optional)
+  total_elevation_gain?: number; // Total elevation gain (optional)
+  suffer_score?: number;         // Strava's difficulty rating (optional)
 }
 
+// Structure of Strava best efforts (personal records, segment times)
 interface StravaBestEffort {
-  id: string;
-  name: string;
-  distance: number;
-  elapsed_time: number;
-  start_date: string;
-  pr_rank?: number;
-  achievement_rank?: number;
+  id: string;              // Unique effort ID
+  name: string;            // Effort name (e.g., "1 mile", "5K")
+  distance: number;        // Distance in meters
+  elapsed_time: number;    // Time in seconds
+  start_date: string;      // When this effort was achieved
+  pr_rank?: number;        // Personal record ranking (1 = PR)
+  achievement_rank?: number; // Achievement ranking
 }
 
-const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile }) => {
-  const [stats, setStats] = useState<StravaStats[]>([]);
-  const [activities, setActivities] = useState<StravaActivity[]>([]);
-  const [bestEfforts, setBestEfforts] = useState<StravaBestEffort[]>([]);
-  const [loading, setLoading] = useState(true);
+// ============================================================================
+// MAIN COMPONENT FUNCTION
+// ============================================================================
 
+const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaDataSynced }) => {
+  // ============================================================================
+  // COMPONENT STATE MANAGEMENT
+  // ============================================================================
+  // These state variables store the Strava data we fetch from the database
+  
+  const [stats, setStats] = useState<StravaStats[]>([]);           // Training statistics (recent, YTD, all-time)
+  const [activities, setActivities] = useState<StravaActivity[]>([]); // Recent running activities
+  const [bestEfforts, setBestEfforts] = useState<StravaBestEffort[]>([]); // Personal records and achievements
+  const [loading, setLoading] = useState(true);                   // Loading state for initial data fetch
+  const [refreshing, setRefreshing] = useState(false);            // Loading state for manual sync
+
+  // ============================================================================
+  // SIDE EFFECTS (useEffect hooks)
+  // ============================================================================
+  
+  // Automatically fetch Strava data when the user connects to Strava
   useEffect(() => {
     if (profile?.strava_connected) {
       fetchStravaData();
     }
   }, [profile?.strava_connected]);
 
+  // ============================================================================
+  // DATA FETCHING FUNCTION
+  // ============================================================================
+  // This function fetches all Strava data from our database and displays it
+  
   const fetchStravaData = async () => {
     setLoading(true);
     
     try {
+      // Fetch all Strava data in parallel for better performance
+      // We use Promise.all to fetch all three types of data simultaneously
       const [statsResponse, activitiesResponse, bestEffortsResponse] = await Promise.all([
+        // Fetch training statistics (recent, year-to-date, all-time totals)
         supabase
           .from('strava_stats')
           .select('*')
           .eq('user_id', profile.user_id),
         
+        // Fetch recent running activities (last 6 months, most recent first, limit 10)
         supabase
           .from('strava_activities')
           .select('*')
@@ -82,6 +137,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile }) => {
           .order('start_date', { ascending: false })
           .limit(10),
         
+        // Fetch personal records and best efforts (ranked by PR status)
         supabase
           .from('strava_best_efforts')
           .select('*')
@@ -90,23 +146,36 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile }) => {
           .limit(10)
       ]);
 
+      // Process the statistics data
       if (statsResponse.error) {
         console.error('Error fetching stats:', statsResponse.error);
-        toast.error('Failed to load Strava stats');
       } else {
         setStats(statsResponse.data || []);
       }
 
+      // Process the activities data
       if (activitiesResponse.error) {
         console.error('Error fetching activities:', activitiesResponse.error);
-        toast.error('Failed to load Strava activities');
       } else {
-        setActivities(activitiesResponse.data || []);
+        const activitiesData = activitiesResponse.data || [];
+        setActivities(activitiesData);
+        
+        // Smart auto-sync: If no activities found in database, try to fetch from Strava API
+        // This handles cases where the user connected to Strava but data wasn't synced yet
+        if (activitiesData.length === 0) {
+          console.log('No activities in database, attempting to fetch from Strava API...');
+          await handleManualRefresh();
+        } else {
+          // Notify parent component that we have Strava data available
+          if (activitiesData.length > 0 && onStravaDataSynced) {
+            onStravaDataSynced();
+          }
+        }
       }
 
+      // Process the best efforts data
       if (bestEffortsResponse.error) {
         console.error('Error fetching best efforts:', bestEffortsResponse.error);
-        toast.error('Failed to load best efforts');
       } else {
         setBestEfforts(bestEffortsResponse.data || []);
       }
@@ -115,40 +184,159 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile }) => {
       console.error('Error fetching Strava data:', error);
       toast.error('Failed to load Strava data');
     } finally {
+      // Always stop loading, even if there was an error
       setLoading(false);
     }
   };
 
-  const formatDistance = (distance: number) => {
-    const km = distance / 1000;
-    return km > 10 ? `${km.toFixed(0)} km` : `${km.toFixed(1)} km`;
+  // ============================================================================
+  // MANUAL SYNC FUNCTION
+  // ============================================================================
+  // This function manually triggers a sync with Strava to fetch the latest data
+  
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    
+    try {
+      console.log('Calling Strava fetch function...');
+      console.log('Profile strava_connected:', profile?.strava_connected);
+      console.log('Profile strava_athlete_id:', profile?.strava_athlete_id);
+      
+      // Call our Supabase Edge Function that fetches data from Strava API
+      const { data, error } = await supabase.functions.invoke('fetch-strava-data', {
+        body: {}
+      });
+
+      if (error) {
+        console.error('Error refreshing Strava data:', error);
+        
+        // Provide user-friendly error messages based on the specific error
+        let errorMessage = 'Failed to refresh Strava data';
+        if (error.message?.includes('not connected to Strava')) {
+          errorMessage = 'Please connect to Strava first in your profile settings';
+        } else if (error.message?.includes('non-2xx status code')) {
+          errorMessage = 'Strava connection issue. Please try reconnecting to Strava.';
+        } else if (error.message) {
+          errorMessage = `Error: ${error.message}`;
+        }
+        
+        toast.error(errorMessage);
+      } else {
+        console.log('Strava data fetch response:', data);
+        const activityCount = data?.activitiesCount || 0;
+        
+        if (activityCount > 0) {
+          // Success! Show how many activities were synced
+          toast.success(`Successfully synced ${activityCount} activities from Strava!`);
+          // Refresh the displayed data to show the new activities
+          await fetchStravaData();
+          // Notify parent component that new Strava data is available
+          if (onStravaDataSynced) {
+            onStravaDataSynced();
+          }
+        } else {
+          // No new activities found - user might not have any running activities
+          toast.warning('No new activities found. Make sure you have running activities on Strava.');
+        }
+      }
+    } catch (error) {
+      console.error('Error calling Strava refresh function:', error);
+      toast.error('Failed to refresh Strava data. Please try again.');
+    } finally {
+      // Always stop the refreshing state
+      setRefreshing(false);
+    }
   };
 
+  // ============================================================================
+  // FORMATTING UTILITY FUNCTIONS
+  // ============================================================================
+  // These functions convert raw data into user-friendly display formats
+  
+  // Convert distance from meters to readable format (km or m)
+  const formatDistance = (distance: number) => {
+    if (!distance || distance === 0) return 'N/A';
+    const km = distance / 1000;
+    return km >= 1 ? `${km.toFixed(1)} km` : `${Math.round(distance)} m`;
+  };
+
+  // Convert speed (m/s) to pace (min:sec/km) - the standard running pace format
   const formatPace = (speed: number) => {
-    if (!speed) return 'N/A';
+    if (!speed || speed === 0) return 'N/A';
     const paceSeconds = 1000 / speed; // seconds per km
     const minutes = Math.floor(paceSeconds / 60);
     const seconds = Math.floor(paceSeconds % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
   };
 
+  // Convert time from seconds to readable format (hours, minutes, seconds)
   const formatTime = (seconds: number) => {
+    if (!seconds || seconds === 0) return 'N/A';
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
     }
-    return `${minutes}m`;
   };
 
+  // Convert time to MM:SS format for best efforts and segments
   const formatEffortTime = (seconds: number) => {
+    if (!seconds || seconds === 0) return 'N/A';
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Convert date string to readable format (e.g., "Dec 20, 2025")
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
+
+  // ============================================================================
+  // CONDITIONAL RENDERING LOGIC
+  // ============================================================================
+  // Show different content based on Strava connection status and loading states
+  
+  // If user is not connected to Strava, show connection prompt
   if (!profile?.strava_connected) {
-    return null;
+    return (
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-orange-500" />
+            Strava Training Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Zap className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">Connect to Strava</h3>
+            <p className="text-muted-foreground mb-4">
+              Connect your Strava account to import your training data and get personalized training plans.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Go to your profile settings to connect to Strava.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (loading) {
@@ -176,10 +364,31 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile }) => {
   return (
     <Card className="mt-6">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Zap className="h-5 w-5 text-orange-500" />
-          Strava Training Data
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-orange-500" />
+            Strava Training Data
+          </CardTitle>
+          <Button
+            onClick={handleManualRefresh}
+            disabled={refreshing}
+            size="sm"
+            variant="outline"
+            className="text-orange-600 border-orange-200 hover:bg-orange-50"
+          >
+            {refreshing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Syncing...
+              </>
+            ) : (
+              <>
+                <Zap className="h-4 w-4 mr-2" />
+                Sync Data
+              </>
+            )}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="overview" className="w-full">
@@ -222,7 +431,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile }) => {
                   
                   <div className="text-center p-3 bg-muted rounded-lg">
                     <div className="text-2xl font-bold text-purple-600">
-                      {Math.round(recentStats.elevation_gain)}m
+                      {recentStats.elevation_gain ? `${Math.round(recentStats.elevation_gain)}m` : 'N/A'}
                     </div>
                     <div className="text-sm text-muted-foreground">
                       Elevation
@@ -259,12 +468,32 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile }) => {
           <TabsContent value="activities" className="space-y-3">
             {activities.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-muted-foreground mb-2">
-                  No recent running activities found in the last 6 months
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Try refreshing your Strava data or check if you have running activities on Strava
-                </p>
+                <div className="mb-4">
+                  <Zap className="h-12 w-12 text-orange-500 mx-auto mb-2" />
+                  <p className="text-muted-foreground mb-2">
+                    No recent running activities found in the last 6 months
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Click "Sync Data" above to fetch your latest activities from Strava
+                  </p>
+                </div>
+                <Button
+                  onClick={handleManualRefresh}
+                  disabled={refreshing}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  {refreshing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4 mr-2" />
+                      Sync Strava Data
+                    </>
+                  )}
+                </Button>
               </div>
             ) : (
               activities.map((activity) => (
@@ -272,30 +501,34 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile }) => {
                   <div className="flex justify-between items-start">
                     <h3 className="font-medium">{activity.name}</h3>
                     <Badge variant="secondary">
-                      {new Date(activity.start_date).toLocaleDateString()}
+                      {formatDate(activity.start_date)}
                     </Badge>
                   </div>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-3 gap-4 text-sm">
                     <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {formatDistance(activity.distance)}
+                      <MapPin className="h-3 w-3 text-blue-500" />
+                      <span className="font-medium">Distance:</span>
+                      <span>{formatDistance(activity.distance)}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatTime(activity.moving_time)}
+                      <Clock className="h-3 w-3 text-green-500" />
+                      <span className="font-medium">Duration:</span>
+                      <span>{formatTime(activity.moving_time)}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      {formatPace(activity.average_speed)}
+                      <TrendingUp className="h-3 w-3 text-orange-500" />
+                      <span className="font-medium">Pace:</span>
+                      <span>{formatPace(activity.average_speed)}</span>
                     </div>
-                    {activity.average_heartrate && (
-                      <div className="flex items-center gap-1">
-                        <Heart className="h-3 w-3" />
-                        {Math.round(activity.average_heartrate)} bpm
-                      </div>
-                    )}
                   </div>
+                  
+                  {activity.average_heartrate && (
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Heart className="h-3 w-3 text-red-500" />
+                      <span>Avg HR: {Math.round(activity.average_heartrate)} bpm</span>
+                    </div>
+                  )}
                 </div>
               ))
             )}

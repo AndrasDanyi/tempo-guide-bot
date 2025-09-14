@@ -38,6 +38,38 @@ serve(async (req) => {
 
     console.log('Generating training plan for user:', user.id);
 
+    // Fetch Strava data if available
+    let stravaData = null;
+    try {
+      const { data: stravaStats } = await supabase
+        .from('strava_stats')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('period_type', 'recent')
+        .single();
+
+      const { data: recentActivities } = await supabase
+        .from('strava_activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('start_date', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
+        .order('start_date', { ascending: false })
+        .limit(10);
+
+      if (stravaStats || (recentActivities && recentActivities.length > 0)) {
+        stravaData = {
+          stats: stravaStats,
+          recentActivities: recentActivities || []
+        };
+        console.log('Found Strava data:', {
+          hasStats: !!stravaStats,
+          activityCount: recentActivities?.length || 0
+        });
+      }
+    } catch (error) {
+      console.log('No Strava data found or error fetching:', error);
+    }
+
     // Calculate days between today and race day, with fallback if race_date is in the past
     const today = new Date();
     const originalRaceDate = new Date(profileData.race_date);
@@ -94,7 +126,7 @@ serve(async (req) => {
         weekEnd.setTime(targetDate.getTime());
       }
 
-      weekPromises.push(generateWeek(weekStart, weekEnd, profileData, openAIApiKey, week + 1, weeks));
+      weekPromises.push(generateWeek(weekStart, weekEnd, profileData, openAIApiKey, week + 1, weeks, stravaData));
     }
 
     const weekResults = await Promise.all(weekPromises);
@@ -155,7 +187,7 @@ serve(async (req) => {
 });
 
 // Helper function to generate a single week
-async function generateWeek(startDate: Date, endDate: Date, profileData: any, openAIApiKey: string, weekNum: number, totalWeeks: number) {
+async function generateWeek(startDate: Date, endDate: Date, profileData: any, openAIApiKey: string, weekNum: number, totalWeeks: number, stravaData: any = null) {
   const days = [];
   const currentDate = new Date(startDate);
   
@@ -164,11 +196,32 @@ async function generateWeek(startDate: Date, endDate: Date, profileData: any, op
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
-  const prompt = `Generate week ${weekNum}/${totalWeeks} of training (${days.length} days) for a ${profileData.race_distance_km || 21}km race:
+  let prompt = `Generate week ${weekNum}/${totalWeeks} of training (${days.length} days) for a ${profileData.race_distance_km || 21}km race:
 
-Profile: ${profileData.experience_years || 'Beginner'} years, ${profileData.current_weekly_mileage || 30}km/week, goal pace ${profileData.goal_pace_per_km || '5:30'}/km, ${profileData.days_per_week || 5} days/week
+Profile: ${profileData.experience_years || 'Beginner'} years, ${profileData.current_weekly_mileage || 30}km/week, goal pace ${profileData.goal_pace_per_km || '5:30'}/km, ${profileData.days_per_week || 5} days/week`;
 
-Return JSON array of training days:
+  // Add Strava data to prompt if available
+  if (stravaData) {
+    prompt += `\n\nStrava Training Data (use this to personalize the plan):
+Recent Training Stats: ${stravaData.stats ? `${stravaData.stats.count} runs, ${Math.round(stravaData.stats.distance/1000)}km total, ${Math.round(stravaData.stats.moving_time/3600)}h moving time` : 'No stats available'}
+
+Recent Activities (last 6 months):`;
+    
+    if (stravaData.recentActivities && stravaData.recentActivities.length > 0) {
+      stravaData.recentActivities.slice(0, 5).forEach((activity: any, index: number) => {
+        const distance = Math.round(activity.distance / 1000 * 10) / 10;
+        const duration = Math.round(activity.moving_time / 60);
+        const pace = activity.average_speed ? Math.round(1000 / activity.average_speed / 60) + ':' + Math.round((1000 / activity.average_speed) % 60).toString().padStart(2, '0') + '/km' : 'N/A';
+        prompt += `\n${index + 1}. ${activity.name} - ${distance}km in ${duration}min (${pace})`;
+      });
+    } else {
+      prompt += '\nNo recent activities found';
+    }
+    
+    prompt += '\n\nUse this Strava data to create a more personalized training plan that builds on their actual training patterns and current fitness level.';
+  }
+
+  prompt += `\n\nReturn JSON array of training days:
 [{
   "date": "YYYY-MM-DD",
   "workout_type": "Easy Run|Tempo Run|Long Run|Intervals|Rest",

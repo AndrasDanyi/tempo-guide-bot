@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, Target, Loader2 } f
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/hooks/use-toast";
+import { formatDate } from '@/lib/dateUtils';
 
 interface TrainingDay {
   id: string;
@@ -236,7 +237,7 @@ const TrainingCalendarView = ({ trainingPlan, profile, planStartDate }: Training
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">
-                  <strong>Race Date:</strong> {new Date(profile.race_date).toLocaleDateString()}
+                  <strong>Race Date:</strong> {formatDate(profile.race_date)}
                 </span>
               </div>
               <div className="flex items-center gap-2">

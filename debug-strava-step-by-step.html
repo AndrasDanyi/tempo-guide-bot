@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Strava Connection Debug - Step by Step</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; }
+        .step { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #007bff; }
+        .error { background: #ffe6e6; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #dc3545; }
+        .success { background: #e6ffe6; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #28a745; }
+        .warning { background: #fff3cd; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #ffc107; }
+        button { padding: 10px 20px; margin: 5px; background: #fc4c02; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #e03d00; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .code { background: #f1f1f1; padding: 10px; border-radius: 3px; font-family: monospace; margin: 5px 0; }
+        .highlight { background: yellow; padding: 2px 4px; border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Strava Connection Debug - Step by Step</h1>
+    
+    <div class="step">
+        <h3>Step 1: Check Your Current Environment</h3>
+        <p><strong>Current URL:</strong> <span id="currentUrl"></span></p>
+        <p><strong>Origin:</strong> <span id="origin"></span></p>
+        <p><strong>Is Localhost:</strong> <span id="isLocalhost"></span></p>
+    </div>
+
+    <div class="step">
+        <h3>Step 2: Expected Strava Configuration</h3>
+        <p><strong>Client ID:</strong> 174698</p>
+        <p><strong>Client Secret:</strong> a4bac3155eebed6e7fa45e7ce1511b28001fa581</p>
+        <p><strong>Callback Domain (Production):</strong> <span class="highlight">otwcyimspsqxmbwzlmjo.supabase.co</span></p>
+        <p><strong>Callback Domain (Localhost):</strong> <span class="highlight">localhost</span></p>
+    </div>
+
+    <div class="step">
+        <h3>Step 3: Test Strava Connection</h3>
+        <button onclick="testConnection()" id="testBtn">Test Strava Connection</button>
+        <div id="testResults"></div>
+    </div>
+
+    <div class="step">
+        <h3>Step 4: Check Browser Console</h3>
+        <p>Open your browser's Developer Tools (F12) and check the Console tab for any error messages.</p>
+        <button onclick="showConsoleInstructions()">Show Console Instructions</button>
+        <div id="consoleInstructions" style="display: none;">
+            <ol>
+                <li>Press F12 to open Developer Tools</li>
+                <li>Click on the "Console" tab</li>
+                <li>Try connecting to Strava</li>
+                <li>Look for any red error messages</li>
+                <li>Copy and paste any error messages here</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="step">
+        <h3>Step 5: Common Issues & Solutions</h3>
+        <div class="warning">
+            <h4>❌ "redirect_uri_mismatch" Error</h4>
+            <p><strong>Solution:</strong> Go to <a href="https://www.strava.com/settings/api" target="_blank">Strava API Settings</a> and add the callback domain above.</p>
+        </div>
+        
+        <div class="warning">
+            <h4>❌ "invalid_client" Error</h4>
+            <p><strong>Solution:</strong> Check that your Client ID (174698) and Client Secret are correct in your Strava app.</p>
+        </div>
+        
+        <div class="warning">
+            <h4>❌ "non-2xx status code" Error</h4>
+            <p><strong>Solution:</strong> This usually means the Strava API is rejecting the request. Check your app configuration.</p>
+        </div>
+    </div>
+
+    <script>
+        // Display current environment info
+        document.getElementById('currentUrl').textContent = window.location.href;
+        document.getElementById('origin').textContent = window.location.origin;
+        document.getElementById('isLocalhost').textContent = 
+            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'Yes' : 'No';
+
+        async function testConnection() {
+            const btn = document.getElementById('testBtn');
+            const results = document.getElementById('testResults');
+            
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            results.innerHTML = '<div class="step">🔄 Testing Strava connection...</div>';
+
+            try {
+                // Test the strava-auth function
+                const response = await fetch('/functions/v1/strava-auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token') || 'test-token'}`,
+                    },
+                    body: JSON.stringify({
+                        redirectUrl: window.location.origin
+                    })
+                });
+
+                results.innerHTML = `<div class="step">📡 Response Status: ${response.status}</div>`;
+
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML += `
+                        <div class="success">
+                            ✅ Success! Got auth URL<br>
+                            <div class="code">${data.authUrl}</div>
+                        </div>
+                    `;
+                } else {
+                    const errorText = await response.text();
+                    results.innerHTML += `
+                        <div class="error">
+                            ❌ Error: ${response.status}<br>
+                            <div class="code">${errorText}</div>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                results.innerHTML += `
+                    <div class="error">
+                        ❌ Network Error:<br>
+                        <div class="code">${error.message}</div>
+                    </div>
+                `;
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Test Strava Connection';
+        }
+
+        function showConsoleInstructions() {
+            const instructions = document.getElementById('consoleInstructions');
+            instructions.style.display = instructions.style.display === 'none' ? 'block' : 'none';
+        }
+    </script>
+</body>
+</html>

@@ -75,7 +75,9 @@ serve(async (req) => {
     });
 
     if (!statsResponse.ok) {
-      throw new Error(`Failed to fetch stats: ${statsResponse.statusText}`);
+      const errorText = await statsResponse.text();
+      console.error(`Strava API error - Status: ${statsResponse.status}, Response: ${errorText}`);
+      throw new Error(`Failed to fetch stats: ${statsResponse.status} ${statsResponse.statusText} - ${errorText}`);
     }
 
     const statsData = await statsResponse.json();
@@ -104,7 +106,9 @@ serve(async (req) => {
       );
 
       if (!activitiesResponse.ok) {
-        console.error(`Failed to fetch activities page ${page}: ${activitiesResponse.statusText}`);
+        const errorText = await activitiesResponse.text();
+        console.error(`Strava API error - Status: ${activitiesResponse.status}, Response: ${errorText}`);
+        console.error(`Failed to fetch activities page ${page}: ${activitiesResponse.status} ${activitiesResponse.statusText} - ${errorText}`);
         break;
       }
 

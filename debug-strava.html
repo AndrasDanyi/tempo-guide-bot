@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Strava Connection Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .info { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffe6e6; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #e6ffe6; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; background: #fc4c02; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #e03d00; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>Strava Connection Debug Tool</h1>
+    
+    <div class="info">
+        <h3>Current Environment Info:</h3>
+        <p><strong>Current URL:</strong> <span id="currentUrl"></span></p>
+        <p><strong>Origin:</strong> <span id="origin"></span></p>
+        <p><strong>User Agent:</strong> <span id="userAgent"></span></p>
+    </div>
+
+    <div class="info">
+        <h3>Strava App Configuration Needed:</h3>
+        <p><strong>Client ID:</strong> 174698</p>
+        <p><strong>Redirect URI (for localhost):</strong> <span id="localhostRedirect"></span></p>
+        <p><strong>Redirect URI (for production):</strong> <span id="productionRedirect"></span></p>
+    </div>
+
+    <div class="info">
+        <h3>Steps to Fix:</h3>
+        <ol>
+            <li>Go to <a href="https://www.strava.com/settings/api" target="_blank">Strava API Settings</a></li>
+            <li>Find your app with Client ID: 174698</li>
+            <li>Add the redirect URI shown above to your Strava app</li>
+            <li>Make sure the redirect URI matches exactly (including http/https)</li>
+        </ol>
+    </div>
+
+    <button onclick="testStravaConnection()" id="testBtn">Test Strava Connection</button>
+    <button onclick="checkEnvironment()" id="envBtn">Check Environment Variables</button>
+    
+    <div id="results"></div>
+
+    <script>
+        // Display current environment info
+        document.getElementById('currentUrl').textContent = window.location.href;
+        document.getElementById('origin').textContent = window.location.origin;
+        document.getElementById('userAgent').textContent = navigator.userAgent;
+        
+        // Calculate expected redirect URIs
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const localhostRedirect = `${window.location.origin}/functions/v1/strava-callback`;
+        const productionRedirect = 'https://your-supabase-project.supabase.co/functions/v1/strava-callback';
+        
+        document.getElementById('localhostRedirect').textContent = localhostRedirect;
+        document.getElementById('productionRedirect').textContent = productionRedirect;
+
+        async function testStravaConnection() {
+            const btn = document.getElementById('testBtn');
+            const results = document.getElementById('results');
+            
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            results.innerHTML = '<div class="info">Testing Strava connection...</div>';
+
+            try {
+                // This would need to be adapted to your actual Supabase setup
+                const response = await fetch('/api/test-strava', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        redirectUrl: window.location.origin
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML = `<div class="success">✅ Connection test successful!<br>Auth URL: ${data.authUrl}</div>`;
+                } else {
+                    const error = await response.text();
+                    results.innerHTML = `<div class="error">❌ Connection test failed:<br>${error}</div>`;
+                }
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Connection test failed:<br>${error.message}</div>`;
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Test Strava Connection';
+        }
+
+        function checkEnvironment() {
+            const results = document.getElementById('results');
+            results.innerHTML = `
+                <div class="info">
+                    <h3>Environment Check:</h3>
+                    <p><strong>Is Localhost:</strong> ${isLocalhost ? 'Yes' : 'No'}</p>
+                    <p><strong>Protocol:</strong> ${window.location.protocol}</p>
+                    <p><strong>Port:</strong> ${window.location.port || 'default'}</p>
+                    <p><strong>Expected Redirect URI:</strong> ${isLocalhost ? localhostRedirect : productionRedirect}</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

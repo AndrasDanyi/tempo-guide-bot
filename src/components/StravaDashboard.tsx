@@ -224,6 +224,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
 
       if (error) {
         console.error('Error getting Strava auth URL:', error);
+        console.error('Full error object:', JSON.stringify(error, null, 2));
         let errorMessage = 'Failed to connect to Strava';
         if (error.message?.includes('redirect_uri_mismatch')) {
           errorMessage = 'Strava app configuration issue. Please check redirect URL settings.';
@@ -272,13 +273,14 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
 
       if (error) {
         console.error('Error refreshing Strava data:', error);
+        console.error('Full error object:', JSON.stringify(error, null, 2));
         
         // Provide user-friendly error messages based on the specific error
         let errorMessage = 'Failed to refresh Strava data';
         if (error.message?.includes('not connected to Strava')) {
           errorMessage = 'Please connect to Strava first in your profile settings';
         } else if (error.message?.includes('non-2xx status code')) {
-          errorMessage = 'Strava connection issue. Please try reconnecting to Strava.';
+          errorMessage = `Strava connection issue. Please try reconnecting to Strava. (Error: ${error.message})`;
         } else if (error.message?.includes('Failed to fetch stats')) {
           errorMessage = 'Strava API error. Your token may have expired. Please reconnect to Strava.';
         } else if (error.message?.includes('Failed to refresh Strava token')) {

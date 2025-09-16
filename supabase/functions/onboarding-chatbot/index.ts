@@ -40,6 +40,15 @@ Current data: ${JSON.stringify(profileData)}
 Parse naturally: "half marathon" = 21km, "Sept 26" = "2025-09-26", "6 feet" = 183cm
 Default to METRIC units (km, kg, cm) unless user explicitly mentions imperial (miles, pounds, feet)
 
+DATA EXTRACTION RULES:
+- If user says "marathon" → goal: "marathon", race_distance_km: 42.2
+- If user says "half marathon" → goal: "half marathon", race_distance_km: 21.1
+- If user says "5k" → goal: "5k", race_distance_km: 5
+- If user says "10k" → goal: "10k", race_distance_km: 10
+- If user gives a date → race_date: "YYYY-MM-DD"
+- If user gives age → age: number
+- If user gives height → height: number (in cm)
+
 IMPORTANT: Set "ready_for_plan": true ONLY when ALL required fields are collected:
 - full_name: user's name
 - goal: their running goal
@@ -52,7 +61,7 @@ BE CONVERSATIONAL: Ask engaging questions to collect missing information. Be enc
 CRITICAL: Respond with ONLY this JSON structure, nothing else:
 {
   "message": "your conversational response here",
-  "extracted_data": {},
+  "extracted_data": {"field": "value"},
   "missing_required": ["list", "of", "missing", "required", "fields"],
   "confidence": 0.8,
   "ready_for_plan": false
@@ -139,6 +148,8 @@ CRITICAL: Respond with ONLY this JSON structure, nothing else:
       
       parsedResponse = JSON.parse(cleanResponse);
       console.log('Parsed response:', parsedResponse);
+      console.log('Extracted data:', parsedResponse.extracted_data);
+      console.log('Missing required:', parsedResponse.missing_required);
     } catch (e) {
       // Enhanced fallback with better error handling
       console.warn('Failed to parse AI response as JSON:', e);
@@ -159,6 +170,29 @@ CRITICAL: Respond with ONLY this JSON structure, nothing else:
           }
         });
       }
+      
+      // Try to extract data from the user's message if JSON parsing failed
+      const userMessage = message.toLowerCase();
+      if (userMessage.includes('marathon') && !userMessage.includes('half')) {
+        extractedInfo.goal = 'marathon';
+        extractedInfo.race_distance_km = 42.2;
+      } else if (userMessage.includes('half marathon')) {
+        extractedInfo.goal = 'half marathon';
+        extractedInfo.race_distance_km = 21.1;
+      } else if (userMessage.includes('5k') || userMessage.includes('5 k')) {
+        extractedInfo.goal = '5k';
+        extractedInfo.race_distance_km = 5;
+      } else if (userMessage.includes('10k') || userMessage.includes('10 k')) {
+        extractedInfo.goal = '10k';
+        extractedInfo.race_distance_km = 10;
+      }
+      
+      // Update missing fields based on extracted info
+      Object.keys(extractedInfo).forEach(key => {
+        if (currentMissing.includes(key)) {
+          currentMissing.splice(currentMissing.indexOf(key), 1);
+        }
+      });
       
       // Determine if ready for plan based on missing fields
       const isReadyForPlan = currentMissing.length === 0;

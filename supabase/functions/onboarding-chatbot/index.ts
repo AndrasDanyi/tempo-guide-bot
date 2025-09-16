@@ -30,7 +30,7 @@ serve(async (req) => {
     const { message, conversationHistory, profileData } = await req.json();
 
 // Optimize prompt to reduce token usage while maintaining functionality
-const systemPrompt = `You are a friendly AI running coach collecting profile data. Respond ONLY in valid JSON.
+const systemPrompt = `You are a friendly AI running coach collecting profile data. You MUST respond with ONLY valid JSON - no code blocks, no explanations, just pure JSON.
 
 REQUIRED: full_name, goal, race_date (YYYY-MM-DD), age, height (cm)
 OPTIONAL: gender, weight_kg, experience_years, weekly_mileage, race_distance_km, goal_pace_per_km, days_per_week, training_history, injuries, units (default: metric)
@@ -40,7 +40,7 @@ Current data: ${JSON.stringify(profileData)}
 Parse naturally: "half marathon" = 21km, "Sept 26" = "2025-09-26", "6 feet" = 183cm
 Default to METRIC units (km, kg, cm) unless user explicitly mentions imperial (miles, pounds, feet)
 
-JSON format:
+CRITICAL: Respond with ONLY this JSON structure, nothing else:
 {
   "message": "friendly response",
   "extracted_data": {},
@@ -70,7 +70,8 @@ JSON format:
         model: 'gpt-4o-mini',
         messages: messages,
         max_completion_tokens: 4096, // Aim high; retry logic handles caps
-        // temperature not supported in GPT-4.1+ models
+        temperature: 0.1, // Low temperature for consistent JSON output
+        response_format: { type: "json_object" } // Force JSON output
       }),
     });
 
@@ -93,6 +94,8 @@ JSON format:
               model: 'gpt-4o-mini',
               messages: messages,
               max_completion_tokens: allowed,
+              temperature: 0.1,
+              response_format: { type: "json_object" }
             }),
           });
           if (!retry.ok) {
@@ -117,7 +120,16 @@ JSON format:
       if (!assistantMessage || assistantMessage.trim().length === 0) {
         throw new Error('Empty response from AI');
       }
-      parsedResponse = JSON.parse(assistantMessage);
+      
+      // Clean the response - remove code blocks if present
+      let cleanResponse = assistantMessage.trim();
+      if (cleanResponse.startsWith('```json')) {
+        cleanResponse = cleanResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanResponse.startsWith('```')) {
+        cleanResponse = cleanResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      parsedResponse = JSON.parse(cleanResponse);
     } catch (e) {
       // Enhanced fallback with better error handling
       console.warn('Failed to parse AI response as JSON:', e);

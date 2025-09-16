@@ -214,10 +214,8 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
       
       console.log('Using redirect URL:', redirectUrl);
       
-      const { data, error } = await supabase.functions.invoke('strava-auth', {
-        body: {
-          redirectUrl: redirectUrl
-        }
+      const { data, error } = await supabase.functions.invoke('strava-auth-simple', {
+        body: {}
       });
 
       console.log('Strava auth response:', { data, error });

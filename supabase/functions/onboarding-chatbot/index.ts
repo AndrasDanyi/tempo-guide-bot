@@ -30,7 +30,15 @@ serve(async (req) => {
     const { message, conversationHistory, profileData } = await req.json();
 
 // Natural conversation approach that was working before
+const currentDate = new Date();
+const currentDateString = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+const currentYear = currentDate.getFullYear();
+const currentMonth = currentDate.getMonth() + 1; // getMonth() is 0-based
+const currentDay = currentDate.getDate();
+
 const systemPrompt = `You are a friendly AI running coach collecting profile data. Have a natural conversation and extract information as you go.
+
+IMPORTANT: Today's date is ${currentDateString} (${currentYear}-${currentMonth.toString().padStart(2, '0')}-${currentDay.toString().padStart(2, '0')}). Use this for date calculations and conversations.
 
 REQUIRED FIELDS: full_name, goal, race_date (YYYY-MM-DD), age, height (cm)
 OPTIONAL: gender, weight_kg, experience_years, weekly_mileage, race_distance_km, goal_pace_per_km, days_per_week, training_history, injuries, units (default: metric)
@@ -47,6 +55,16 @@ CRITICAL EXTRACTION RULES - YOU MUST EXTRACT DATA:
 - If user gives age → extracted_data: {"age": number}
 - If user gives height → extracted_data: {"height": number}
 
+OPTIONAL DATA EXTRACTION - ALSO EXTRACT THESE:
+- If user mentions pace/time goals → extracted_data: {"goal_pace_per_km": "pace", "goal_time": "time goal"}
+- If user mentions training frequency → extracted_data: {"days_per_week": number}
+- If user mentions current mileage → extracted_data: {"current_weekly_mileage": number}
+- If user mentions experience → extracted_data: {"experience_years": number}
+- If user mentions weight → extracted_data: {"weight_kg": number}
+- If user mentions gender → extracted_data: {"gender": "gender"}
+- If user mentions injuries → extracted_data: {"injuries": "injury description"}
+- If user mentions training history → extracted_data: {"training_history": "history description"}
+
 GOAL EXTRACTION RULES - BE FLEXIBLE:
 - Extract the EXACT goal text as the user said it
 - Try to extract distance from the goal if mentioned
@@ -59,10 +77,10 @@ GOAL EXTRACTION RULES - BE FLEXIBLE:
   * "5k" → {"goal": "5k", "race_distance_km": 5}
   * "10k" → {"goal": "10k", "race_distance_km": 10}
 
-EXAMPLES:
+EXAMPLES (Today is ${currentDateString}):
 - If user says "andy" when asked for name → extracted_data: {"full_name": "Andy"}
-- If user says "sept 26" (and today is before Sept 26) → extracted_data: {"race_date": "2025-09-26"}
-- If user says "march 15" (and today is after March 15) → extracted_data: {"race_date": "2026-03-15"}
+- If user says "jan 3rd" → extracted_data: {"race_date": "${currentYear + 1}-01-03"} (since Jan 3rd has passed this year)
+- If user says "march 15" → extracted_data: {"race_date": "${currentYear + 1}-03-15"} (since March 15 has passed this year)
 - If user says "run 12 km" → extracted_data: {"goal": "run 12 km", "race_distance_km": 12}
 - If user says "run 120km with 3000m elevation" → extracted_data: {"goal": "run 120km with 3000m elevation", "race_distance_km": 120}
 - If user says "run a 10k under 40 mins" → extracted_data: {"goal": "run a 10k under 40 mins", "race_distance_km": 10}
@@ -70,6 +88,11 @@ EXAMPLES:
 - If user says "32" when asked for age → extracted_data: {"age": 32}
 - If user says "182" when asked for height → extracted_data: {"height": 182}
 - If user says "6 feet" when asked for height → extracted_data: {"height": 183}
+- If user says "I want to finish under 16 hours" → extracted_data: {"goal_time": "under 16 hours", "goal_pace_per_km": "8:00/km"}
+- If user says "5:30 per km" → extracted_data: {"goal_pace_per_km": "5:30/km"}
+- If user says "4 times a week" → extracted_data: {"days_per_week": 4}
+- If user says "I run 30km per week" → extracted_data: {"current_weekly_mileage": 30}
+- If user says "I've been running for 3 years" → extracted_data: {"experience_years": 3}
 
 Set "ready_for_plan": true ONLY when ALL required fields are collected:
 - full_name: user's name
@@ -235,6 +258,61 @@ Respond with this EXACT JSON structure:
         const feet = parseInt(feetOnlyMatch[1]);
         const heightCm = Math.round(feet * 30.48);
         extractedInfo.height = heightCm;
+      }
+      
+      // Extract optional data points
+      
+      // Extract time goals and pace
+      if (userMessage.includes('under') && (userMessage.includes('hour') || userMessage.includes('min'))) {
+        const timeMatch = userMessage.match(/under\s+(\d+(?:\.\d+)?)\s*(hour|min)/i);
+        if (timeMatch) {
+          const time = parseFloat(timeMatch[1]);
+          const unit = timeMatch[2].toLowerCase();
+          if (unit === 'hour') {
+            extractedInfo.goal_time = `under ${time} hours`;
+            // Calculate pace if we have distance (assuming from previous context)
+            if (extractedInfo.race_distance_km) {
+              const pacePerKm = (time * 60) / extractedInfo.race_distance_km;
+              const minutes = Math.floor(pacePerKm);
+              const seconds = Math.round((pacePerKm - minutes) * 60);
+              extractedInfo.goal_pace_per_km = `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
+            }
+          } else {
+            extractedInfo.goal_time = `under ${time} minutes`;
+          }
+        }
+      }
+      
+      // Extract pace per km
+      const paceMatch = userMessage.match(/(\d+):(\d+)\s*per\s*km/i);
+      if (paceMatch) {
+        const minutes = parseInt(paceMatch[1]);
+        const seconds = parseInt(paceMatch[2]);
+        extractedInfo.goal_pace_per_km = `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
+      }
+      
+      // Extract training frequency
+      const frequencyMatch = userMessage.match(/(\d+)\s*times?\s*a?\s*week/i);
+      if (frequencyMatch) {
+        extractedInfo.days_per_week = parseInt(frequencyMatch[1]);
+      }
+      
+      // Extract weekly mileage
+      const mileageMatch = userMessage.match(/(\d+(?:\.\d+)?)\s*km\s*per\s*week/i);
+      if (mileageMatch) {
+        extractedInfo.current_weekly_mileage = parseFloat(mileageMatch[1]);
+      }
+      
+      // Extract experience years
+      const experienceMatch = userMessage.match(/running\s*for\s*(\d+)\s*years?/i);
+      if (experienceMatch) {
+        extractedInfo.experience_years = parseInt(experienceMatch[1]);
+      }
+      
+      // Extract weight
+      const weightMatch = userMessage.match(/(\d+(?:\.\d+)?)\s*kg/i);
+      if (weightMatch) {
+        extractedInfo.weight_kg = parseFloat(weightMatch[1]);
       }
       
       // Extract running goals - be flexible and extract any goal

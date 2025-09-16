@@ -40,8 +40,8 @@ Current data: ${JSON.stringify(profileData)}
 Parse naturally: "half marathon" = 21km, "Sept 26" = "2025-09-26", "6 feet" = 183cm
 Default to METRIC units (km, kg, cm) unless user explicitly mentions imperial (miles, pounds, feet)
 
-CRITICAL EXTRACTION RULES:
-- If user gives their name → extracted_data: {"full_name": "their name"}
+CRITICAL EXTRACTION RULES - YOU MUST EXTRACT DATA:
+- If user gives their name (like "andy", "peter", "john") → extracted_data: {"full_name": "Andy"}
 - If user says "marathon" → extracted_data: {"goal": "marathon", "race_distance_km": 42.2}
 - If user says "half marathon" → extracted_data: {"goal": "half marathon", "race_distance_km": 21.1}
 - If user says "5k" → extracted_data: {"goal": "5k", "race_distance_km": 5}
@@ -49,6 +49,15 @@ CRITICAL EXTRACTION RULES:
 - If user gives a date → extracted_data: {"race_date": "YYYY-MM-DD"}
 - If user gives age → extracted_data: {"age": number}
 - If user gives height → extracted_data: {"height": number}
+
+EXAMPLE: If user says "andy" when asked for name, you MUST respond with:
+{
+  "message": "Nice to meet you, Andy! What's your running goal?",
+  "extracted_data": {"full_name": "Andy"},
+  "missing_required": ["goal", "race_date", "age", "height"],
+  "confidence": 0.9,
+  "ready_for_plan": false
+}
 
 Set "ready_for_plan": true ONLY when ALL required fields are collected:
 - full_name: user's name
@@ -173,7 +182,14 @@ Respond with this EXACT JSON structure:
       }
       
       // Try to extract data from the user's message if JSON parsing failed
-      const userMessage = message.toLowerCase();
+      const userMessage = message.toLowerCase().trim();
+      
+      // Extract name if it's a simple name response
+      if (userMessage.length < 20 && /^[a-zA-Z]+$/.test(userMessage)) {
+        extractedInfo.full_name = userMessage.charAt(0).toUpperCase() + userMessage.slice(1);
+      }
+      
+      // Extract running goals
       if (userMessage.includes('marathon') && !userMessage.includes('half')) {
         extractedInfo.goal = 'marathon';
         extractedInfo.race_distance_km = 42.2;

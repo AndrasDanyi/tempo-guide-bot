@@ -55,6 +55,9 @@ EXAMPLES:
 - If user says "sept 26" (and today is before Sept 26) → extracted_data: {"race_date": "2025-09-26"}
 - If user says "march 15" (and today is after March 15) → extracted_data: {"race_date": "2026-03-15"}
 - If user says "marathon" → extracted_data: {"goal": "marathon", "race_distance_km": 42.2}
+- If user says "32" when asked for age → extracted_data: {"age": 32}
+- If user says "182" when asked for height → extracted_data: {"height": 182}
+- If user says "6 feet" when asked for height → extracted_data: {"height": 183}
 
 Set "ready_for_plan": true ONLY when ALL required fields are collected:
 - full_name: user's name
@@ -184,6 +187,42 @@ Respond with this EXACT JSON structure:
       // Extract name if it's a simple name response
       if (userMessage.length < 20 && /^[a-zA-Z]+$/.test(userMessage)) {
         extractedInfo.full_name = userMessage.charAt(0).toUpperCase() + userMessage.slice(1);
+      }
+      
+      // Extract age if it's a number between 10 and 100
+      const ageMatch = userMessage.match(/^(\d{1,2})$/);
+      if (ageMatch) {
+        const age = parseInt(ageMatch[1]);
+        if (age >= 10 && age <= 100) {
+          extractedInfo.age = age;
+        }
+      }
+      
+      // Extract height if it's a number (cm) or feet/inches
+      const heightMatch = userMessage.match(/^(\d{2,3})$/);
+      if (heightMatch) {
+        const height = parseInt(heightMatch[1]);
+        if (height >= 100 && height <= 250) { // reasonable height range in cm
+          extractedInfo.height = height;
+        }
+      }
+      
+      // Extract height in feet and inches
+      const feetInchesMatch = userMessage.match(/(\d+)\s*feet?\s*(\d+)\s*inches?/i);
+      if (feetInchesMatch) {
+        const feet = parseInt(feetInchesMatch[1]);
+        const inches = parseInt(feetInchesMatch[2]);
+        const totalInches = feet * 12 + inches;
+        const heightCm = Math.round(totalInches * 2.54);
+        extractedInfo.height = heightCm;
+      }
+      
+      // Extract height in feet only
+      const feetOnlyMatch = userMessage.match(/(\d+)\s*feet?/i);
+      if (feetOnlyMatch && !userMessage.includes('inch')) {
+        const feet = parseInt(feetOnlyMatch[1]);
+        const heightCm = Math.round(feet * 30.48);
+        extractedInfo.height = heightCm;
       }
       
       // Extract running goals

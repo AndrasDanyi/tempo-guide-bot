@@ -32,7 +32,7 @@ serve(async (req) => {
 // Optimize prompt to reduce token usage while maintaining functionality
 const systemPrompt = `You are a friendly AI running coach collecting profile data. You MUST respond with ONLY valid JSON - no code blocks, no explanations, just pure JSON.
 
-REQUIRED: full_name, goal, race_date (YYYY-MM-DD), age, height (cm)
+REQUIRED FIELDS: full_name, goal, race_date (YYYY-MM-DD), age, height (cm)
 OPTIONAL: gender, weight_kg, experience_years, weekly_mileage, race_distance_km, goal_pace_per_km, days_per_week, training_history, injuries, units (default: metric)
 
 Current data: ${JSON.stringify(profileData)}
@@ -40,11 +40,18 @@ Current data: ${JSON.stringify(profileData)}
 Parse naturally: "half marathon" = 21km, "Sept 26" = "2025-09-26", "6 feet" = 183cm
 Default to METRIC units (km, kg, cm) unless user explicitly mentions imperial (miles, pounds, feet)
 
+IMPORTANT: Set "ready_for_plan": true ONLY when ALL required fields are collected:
+- full_name: user's name
+- goal: their running goal
+- race_date: target race date (YYYY-MM-DD format)
+- age: their age (number)
+- height: their height in cm (number)
+
 CRITICAL: Respond with ONLY this JSON structure, nothing else:
 {
   "message": "friendly response",
   "extracted_data": {},
-  "missing_required": [],
+  "missing_required": ["list", "of", "missing", "required", "fields"],
   "confidence": 0.8,
   "ready_for_plan": false
 }`;
@@ -113,6 +120,7 @@ CRITICAL: Respond with ONLY this JSON structure, nothing else:
       const assistantMessage = data.choices[0].message.content;
 
     console.log('AI Response:', assistantMessage);
+    console.log('Current profile data:', profileData);
 
     let parsedResponse;
     try {
@@ -130,6 +138,7 @@ CRITICAL: Respond with ONLY this JSON structure, nothing else:
       }
       
       parsedResponse = JSON.parse(cleanResponse);
+      console.log('Parsed response:', parsedResponse);
     } catch (e) {
       // Enhanced fallback with better error handling
       console.warn('Failed to parse AI response as JSON:', e);
@@ -137,7 +146,8 @@ CRITICAL: Respond with ONLY this JSON structure, nothing else:
       
       // Try to extract any useful information from the raw response
       const extractedInfo: any = {};
-      const currentMissing = ["full_name", "goal", "race_date", "age", "height"];
+      const requiredFields = ["full_name", "goal", "race_date", "age", "height"];
+      const currentMissing = [...requiredFields];
       
       // Check current profile data to see what we already have
       if (profileData) {
@@ -150,12 +160,15 @@ CRITICAL: Respond with ONLY this JSON structure, nothing else:
         });
       }
       
+      // Determine if ready for plan based on missing fields
+      const isReadyForPlan = currentMissing.length === 0;
+      
       parsedResponse = {
         message: assistantMessage || "I apologize, I'm having trouble processing that. Could you please rephrase your response?",
         extracted_data: extractedInfo,
         missing_required: currentMissing,
         confidence: 0.3,
-        ready_for_plan: false
+        ready_for_plan: isReadyForPlan
       };
     }
 

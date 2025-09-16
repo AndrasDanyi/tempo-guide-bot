@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Strava Activities</title>
+</head>
+<body>
+    <h1>Debug Strava Activities</h1>
+    <button onclick="testStravaFetch()">Test Strava Fetch</button>
+    <div id="result"></div>
+
+    <script>
+        async function testStravaFetch() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                // You'll need to replace this with your actual Supabase URL and anon key
+                const supabaseUrl = 'https://otwcyimspsqxmbwzlmjo.supabase.co';
+                const supabaseAnonKey = 'YOUR_ANON_KEY_HERE'; // Replace with your actual anon key
+                
+                const response = await fetch(`${supabaseUrl}/functions/v1/strava-fetch-clean`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${supabaseAnonKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <h3>Response Status: ${response.status}</h3>
+                    <h3>Response Data:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<h3>Error:</h3><pre>${error.message}</pre>`;
+            }
+        }
+    </script>
+</body>
+</html>

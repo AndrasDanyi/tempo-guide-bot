@@ -103,39 +103,39 @@ serve(async (req) => {
 
     const activities = await activitiesResponse.json();
 
-    // Store activities in database
-    if (activities && activities.length > 0) {
-      const activitiesToInsert = activities.map((activity: any) => ({
-        user_id: user.id,
-        activity_id: activity.id,
-        name: activity.name,
-        distance: activity.distance,
-        moving_time: activity.moving_time,
-        elapsed_time: activity.elapsed_time,
-        total_elevation_gain: activity.total_elevation_gain,
-        type: activity.type,
-        start_date: activity.start_date,
-        average_speed: activity.average_speed,
-        max_speed: activity.max_speed,
-        average_heartrate: activity.average_heartrate,
-        max_heartrate: activity.max_heartrate,
-        average_cadence: activity.average_cadence,
-        calories: activity.calories,
-        description: activity.description
-      }));
+    // Store activities in database (commented out until schema is fixed)
+    // if (activities && activities.length > 0) {
+    //   const activitiesToInsert = activities.map((activity: any) => ({
+    //     user_id: user.id,
+    //     activity_id: activity.id,
+    //     name: activity.name,
+    //     distance: activity.distance,
+    //     moving_time: activity.moving_time,
+    //     elapsed_time: activity.elapsed_time,
+    //     total_elevation_gain: activity.total_elevation_gain,
+    //     type: activity.type,
+    //     start_date: activity.start_date,
+    //     average_speed: activity.average_speed,
+    //     max_speed: activity.max_speed,
+    //     average_heartrate: activity.average_heartrate,
+    //     max_heartrate: activity.max_heartrate,
+    //     average_cadence: activity.average_cadence,
+    //     calories: activity.calories,
+    //     description: activity.description
+    //   }));
 
-      // Upsert activities (insert or update if exists)
-      const { error: insertError } = await supabase
-        .from('strava_activities')
-        .upsert(activitiesToInsert, { 
-          onConflict: 'user_id,activity_id',
-          ignoreDuplicates: false 
-        });
+    //   // Upsert activities (insert or update if exists)
+    //   const { error: insertError } = await supabase
+    //     .from('strava_activities')
+    //     .upsert(activitiesToInsert, { 
+    //       onConflict: 'user_id,activity_id',
+    //       ignoreDuplicates: false 
+    //     });
 
-      if (insertError) {
-        console.error('Error storing activities:', insertError);
-      }
-    }
+    //   if (insertError) {
+    //     console.error('Error storing activities:', insertError);
+    //   }
+    // }
 
     return new Response(JSON.stringify({ 
       success: true,

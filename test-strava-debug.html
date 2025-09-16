@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Strava Connection Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; }
+        .test { background: #f0f8ff; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #007bff; }
+        .error { background: #ffe6e6; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #dc3545; }
+        .success { background: #e6ffe6; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #28a745; }
+        button { padding: 10px 20px; margin: 5px; background: #fc4c02; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #e03d00; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .code { background: #f1f1f1; padding: 10px; border-radius: 3px; font-family: monospace; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Strava Connection Debug Test</h1>
+    
+    <div class="test">
+        <h3>Test 1: Check Current Environment</h3>
+        <p><strong>Current URL:</strong> <span id="currentUrl"></span></p>
+        <p><strong>Origin:</strong> <span id="origin"></span></p>
+    </div>
+
+    <div class="test">
+        <h3>Test 2: Test Supabase Connection</h3>
+        <button onclick="testSupabaseConnection()" id="supabaseBtn">Test Supabase Connection</button>
+        <div id="supabaseResults"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 3: Test Strava Auth Function</h3>
+        <button onclick="testStravaAuth()" id="stravaBtn">Test Strava Auth Function</button>
+        <div id="stravaResults"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 4: Manual Strava URL Test</h3>
+        <button onclick="testManualStravaUrl()" id="manualBtn">Test Manual Strava URL</button>
+        <div id="manualResults"></div>
+    </div>
+
+    <script>
+        // Display current environment
+        document.getElementById('currentUrl').textContent = window.location.href;
+        document.getElementById('origin').textContent = window.location.origin;
+
+        async function testSupabaseConnection() {
+            const btn = document.getElementById('supabaseBtn');
+            const results = document.getElementById('supabaseResults');
+            
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            results.innerHTML = '<div class="test">🔄 Testing Supabase connection...</div>';
+
+            try {
+                // Test basic Supabase connection
+                const response = await fetch('/functions/v1/strava-auth', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (response.ok) {
+                    results.innerHTML = '<div class="success">✅ Supabase connection working</div>';
+                } else {
+                    results.innerHTML = `<div class="error">❌ Supabase connection failed: ${response.status}</div>`;
+                }
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Supabase connection error: ${error.message}</div>`;
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Test Supabase Connection';
+        }
+
+        async function testStravaAuth() {
+            const btn = document.getElementById('stravaBtn');
+            const results = document.getElementById('stravaResults');
+            
+            btn.disabled = true;
+            btn.textContent = 'Testing...';
+            results.innerHTML = '<div class="test">🔄 Testing Strava auth function...</div>';
+
+            try {
+                const response = await fetch('/functions/v1/strava-auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer test-token`,
+                    },
+                    body: JSON.stringify({
+                        redirectUrl: window.location.origin
+                    })
+                });
+
+                results.innerHTML = `<div class="test">📡 Response Status: ${response.status}</div>`;
+
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML += `
+                        <div class="success">
+                            ✅ Strava auth function working!<br>
+                            <div class="code">Auth URL: ${data.authUrl}</div>
+                        </div>
+                    `;
+                } else {
+                    const errorText = await response.text();
+                    results.innerHTML += `
+                        <div class="error">
+                            ❌ Strava auth function failed:<br>
+                            <div class="code">${errorText}</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                results.innerHTML += `
+                    <div class="error">
+                        ❌ Network error:<br>
+                        <div class="code">${error.message}</div>
+                    </div>
+                `;
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Test Strava Auth Function';
+        }
+
+        function testManualStravaUrl() {
+            const results = document.getElementById('manualResults');
+            
+            // Create a manual Strava auth URL
+            const clientId = '174698';
+            const redirectUri = 'https://otwcyimspsqxmbwzlmjo.supabase.co/functions/v1/strava-callback';
+            const scope = 'read,activity:read_all';
+            const state = 'test-state-' + Date.now();
+            
+            const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=force&scope=${scope}&state=${state}`;
+            
+            results.innerHTML = `
+                <div class="test">
+                    <h4>Manual Strava Auth URL:</h4>
+                    <div class="code">${authUrl}</div>
+                    <button onclick="window.open('${authUrl}', '_blank')">Open Strava Auth URL</button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

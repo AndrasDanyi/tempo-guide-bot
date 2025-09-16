@@ -8,9 +8,8 @@ const corsHeaders = {
 };
 
 const STRAVA_CLIENT_ID = '174698';
-const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/strava-callback`;
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SUPABASE_URL = 'https://otwcyimspsqxmbwzlmjo.supabase.co';
+const REDIRECT_URI = `${SUPABASE_URL}/functions/v1/strava-callback-simple`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,13 +17,14 @@ serve(async (req) => {
   }
 
   try {
-    // Get authorization header and validate JWT
+    // Get authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new Error('Missing or invalid authorization header');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Create Supabase client
+    const supabase = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     
     // Get user from JWT
     const { data: { user }, error: authError } = await supabase.auth.getUser(
@@ -35,46 +35,33 @@ serve(async (req) => {
       throw new Error('Invalid or expired token');
     }
 
-    const { redirectUrl } = await req.json();
-
-    // Generate secure state token instead of exposing user ID
+    // Generate state token
     const stateToken = crypto.randomUUID();
     
-    // Store state token in database with expiration
+    // Store state token in database
     const { error: stateError } = await supabase
       .from('oauth_state_tokens')
       .insert({
         token: stateToken,
         user_id: user.id,
-        redirect_url: redirectUrl || '/'
+        redirect_url: 'https://tempo-guide-bot.vercel.app'
       });
 
     if (stateError) {
-      console.error('Error storing OAuth state token:', stateError);
-      throw new Error('Failed to generate secure state token');
+      console.error('Error storing state token:', stateError);
+      throw new Error('Failed to generate state token');
     }
 
-    // Log security event
-    await supabase
-      .from('security_audit_log')
-      .insert({
-        user_id: user.id,
-        event_type: 'strava_auth_initiated',
-        event_details: { redirect_url: redirectUrl },
-        ip_address: req.headers.get('x-forwarded-for') || 'unknown',
-        user_agent: req.headers.get('user-agent') || 'unknown'
-      });
-
-    // Build Strava authorization URL with secure state token
-    const scope = 'read,activity:read_all';
-    
+    // Build Strava authorization URL
     const authUrl = new URL('https://www.strava.com/oauth/authorize');
     authUrl.searchParams.set('client_id', STRAVA_CLIENT_ID);
     authUrl.searchParams.set('response_type', 'code');
-    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
     authUrl.searchParams.set('approval_prompt', 'force');
-    authUrl.searchParams.set('scope', scope);
+    authUrl.searchParams.set('scope', 'read,activity:read_all');
     authUrl.searchParams.set('state', stateToken);
+
+    console.log('Generated Strava auth URL:', authUrl.toString());
 
     return new Response(JSON.stringify({ 
       authUrl: authUrl.toString() 
@@ -83,7 +70,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Error in strava-auth function:', error);
+    console.error('Error in strava-auth-simple function:', error);
     return new Response(JSON.stringify({ 
       error: error.message 
     }), {

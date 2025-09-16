@@ -56,7 +56,7 @@ CRITICAL EXTRACTION RULES - YOU MUST EXTRACT DATA:
 - If user gives height → extracted_data: {"height": number}
 
 OPTIONAL DATA EXTRACTION - ALSO EXTRACT THESE:
-- If user mentions pace/time goals → extracted_data: {"goal_pace_per_km": "pace", "goal_time": "time goal"}
+- If user mentions pace/time goals → extracted_data: {"goal_pace_per_km": "calculated_pace", "goal_time": "time goal"}
 - If user mentions training frequency → extracted_data: {"days_per_week": number}
 - If user mentions current mileage → extracted_data: {"current_weekly_mileage": number}
 - If user mentions experience → extracted_data: {"experience_years": number}
@@ -64,6 +64,11 @@ OPTIONAL DATA EXTRACTION - ALSO EXTRACT THESE:
 - If user mentions gender → extracted_data: {"gender": "gender"}
 - If user mentions injuries → extracted_data: {"injuries": "injury description"}
 - If user mentions training history → extracted_data: {"training_history": "history description"}
+
+CRITICAL: When user gives a time goal, you MUST calculate the pace and extract it:
+- "run 205 km in 24 hours" → calculate pace: 24 hours = 1440 minutes, 1440/205 = 7.02 min/km = 7:02/km
+- "finish under 16 hours" for 120km → calculate pace: 16 hours = 960 minutes, 960/120 = 8.0 min/km = 8:00/km
+- ALWAYS extract both goal_time AND goal_pace_per_km when time goals are mentioned
 
 GOAL EXTRACTION RULES - BE FLEXIBLE:
 - Extract the EXACT goal text as the user said it
@@ -89,6 +94,7 @@ EXAMPLES (Today is ${currentDateString}):
 - If user says "182" when asked for height → extracted_data: {"height": 182}
 - If user says "6 feet" when asked for height → extracted_data: {"height": 183}
 - If user says "I want to finish under 16 hours" → extracted_data: {"goal_time": "under 16 hours", "goal_pace_per_km": "8:00/km"}
+- If user says "whatever pace I need to run 205 km in 24 hours" → extracted_data: {"goal_time": "24 hours", "goal_pace_per_km": "7:02/km", "race_distance_km": 205}
 - If user says "5:30 per km" → extracted_data: {"goal_pace_per_km": "5:30/km"}
 - If user says "4 times a week" → extracted_data: {"days_per_week": 4}
 - If user says "I run 30km per week" → extracted_data: {"current_weekly_mileage": 30}
@@ -262,7 +268,24 @@ Respond with this EXACT JSON structure:
       
       // Extract optional data points
       
-      // Extract time goals and pace
+      // Extract time goals and pace - handle various formats
+      
+      // Format: "run X km in Y hours" or "X km in Y hours"
+      const kmInHoursMatch = userMessage.match(/(\d+(?:\.\d+)?)\s*km\s*in\s*(\d+(?:\.\d+)?)\s*hours?/i);
+      if (kmInHoursMatch) {
+        const distance = parseFloat(kmInHoursMatch[1]);
+        const hours = parseFloat(kmInHoursMatch[2]);
+        extractedInfo.race_distance_km = distance;
+        extractedInfo.goal_time = `${hours} hours`;
+        
+        // Calculate pace: hours * 60 minutes / distance
+        const pacePerKm = (hours * 60) / distance;
+        const minutes = Math.floor(pacePerKm);
+        const seconds = Math.round((pacePerKm - minutes) * 60);
+        extractedInfo.goal_pace_per_km = `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
+      }
+      
+      // Format: "under X hours" or "under X minutes"
       if (userMessage.includes('under') && (userMessage.includes('hour') || userMessage.includes('min'))) {
         const timeMatch = userMessage.match(/under\s+(\d+(?:\.\d+)?)\s*(hour|min)/i);
         if (timeMatch) {

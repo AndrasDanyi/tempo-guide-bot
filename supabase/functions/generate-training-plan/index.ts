@@ -146,7 +146,12 @@ serve(async (req) => {
         pace_targets: day.pace,
         estimated_distance_km: day.distance_km,
         estimated_moving_time: day.duration,
-        detailed_fields_generated: false
+        detailed_fields_generated: false,
+        // Store additional comprehensive training data
+        additional_training: day.additional_training || null,
+        recovery_instructions: day.recovery_instructions || null,
+        nutrition_guidance: day.nutrition_guidance || null,
+        evaluation_questions: day.evaluation_questions || null
       })));
 
     if (insertError) {
@@ -196,9 +201,71 @@ async function generateWeek(startDate: Date, endDate: Date, profileData: any, op
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
-  let prompt = `Generate week ${weekNum}/${totalWeeks} of training (${days.length} days) for a ${profileData.race_distance_km || 21}km race:
+  // Create comprehensive user profile summary for AI
+  const userProfile = {
+    name: profileData.full_name || 'User',
+    goal: profileData.goal || 'Complete the race',
+    raceDistance: profileData.race_distance_km || 21,
+    raceDate: profileData.race_date,
+    goalTime: profileData.goal_time || 'Not specified',
+    goalPace: profileData.goal_pace_per_km || 'Not specified',
+    age: profileData.age || 'Not specified',
+    height: profileData.height || 'Not specified',
+    weight: profileData.weight_kg || 'Not specified',
+    gender: profileData.gender || 'Not specified',
+    experience: profileData.experience_years || 'Not specified',
+    currentWeeklyMileage: profileData.current_weekly_mileage || 'Not specified',
+    daysPerWeek: profileData.days_per_week || 'Not specified',
+    injuries: profileData.injuries || 'None reported',
+    trainingHistory: profileData.training_history || 'Not specified',
+    furtherNotes: profileData.further_notes || 'None'
+  };
 
-Profile: ${profileData.experience_years || 'Beginner'} years, ${profileData.current_weekly_mileage || 30}km/week, goal pace ${profileData.goal_pace_per_km || '5:30'}/km, ${profileData.days_per_week || 5} days/week`;
+  let prompt = `You are a world-class running coach with expertise in all levels of runners—from beginners to elite athletes—and across all race distances and goals. Your task is to create a fully personalized running training plan that is safe, effective, and optimized for performance, recovery, and injury prevention.
+
+Athlete Information:
+• Goal: ${userProfile.goal}
+• Target finish time or distance: ${userProfile.goalTime} for ${userProfile.raceDistance}km
+• Race/event date: ${userProfile.raceDate}
+• Start date of training: ${days[0]}
+• Current weekly mileage: ${userProfile.currentWeeklyMileage}km
+• Typical pace or recent race results: ${userProfile.goalPace}
+• Running experience: ${userProfile.experience} years
+• Available training days per week: ${userProfile.daysPerWeek}
+• Time-of-day preference: Not specified
+• Injuries, limitations, or medical conditions: ${userProfile.injuries}
+• Equipment or environment constraints: Not specified
+
+Optional Information:
+• Cross-training experience: Not specified
+• Strength training experience: Not specified
+• Nutrition preferences: Not specified
+• Heart rate zones: Not specified
+• Sleep and recovery habits: Not specified
+• Lifestyle constraints: Not specified
+
+Plan Requirements for Week ${weekNum}/${totalWeeks}:
+1. Running Sessions:
+   • Include warm-up, main set, and cooldown
+   • Specify distance, pace, heart rate zone, effort, and purpose
+   • Include interval, tempo, long, and easy runs as appropriate
+   • Weekly mileage progression based on experience
+2. Strength & Mobility:
+   • Include 1–3 weekly sessions with exercises, sets, and reps
+   • Focus on injury prevention and running efficiency
+3. Recovery & Rest:
+   • Rest day guidance, active recovery, stretching, foam rolling, mobility
+   • Include sleep and fatigue management advice
+4. Nutrition & Hydration:
+   • Pre-, during, and post-run fueling
+   • General daily calorie and macronutrient guidance
+
+Additional Instructions:
+• Use the latest science-based training methods
+• Tailor the plan to the runner's ability, experience, and goals
+• Ensure progressive overload while preventing injury
+• Include variety to avoid monotony and optimize performance
+• Explain reasoning for key sessions or changes to the plan`;
 
   // Add Strava data to prompt if available
   if (stravaData) {
@@ -221,18 +288,31 @@ Recent Activities (last 6 months):`;
     prompt += '\n\nUse this Strava data to create a more personalized training plan that builds on their actual training patterns and current fitness level.';
   }
 
-  prompt += `\n\nReturn JSON array of training days:
+  prompt += `\n\nOutput Format:
+Provide a day-by-day plan for the following dates: ${days.join(', ')}
+
+Return JSON array with this structure:
 [{
   "date": "YYYY-MM-DD",
-  "workout_type": "Easy Run|Tempo Run|Long Run|Intervals|Rest",
-  "description": "brief description",
-  "duration": "30 min",
-  "distance": "5 km",
-  "distance_km": 5.0,
-  "pace": "Easy (5:30-6:00/km)"
+  "workout_type": "Long Run|Interval|Tempo Run|Easy Run|Recovery Run|Strength Training|Mobility|Rest Day",
+  "description": "Detailed session breakdown including warm-up, main set, cooldown, purpose, and effort level",
+  "duration": "XX min",
+  "distance": "X.X km",
+  "distance_km": X.X,
+  "pace": "Specific pace range with heart rate zones and effort description",
+  "additional_training": "Strength exercises, mobility work, or cross-training details",
+  "recovery_instructions": "Stretching, foam rolling, sleep, nutrition guidance",
+  "nutrition_guidance": "Pre/during/post-run fueling recommendations",
+  "evaluation_questions": "How did it feel? Did you complete the session? Additional notes?"
 }]
 
-Dates: ${days.join(', ')}`;
+IMPORTANT: 
+• Create VARIED and PROGRESSIVE workouts specific to this runner's ${userProfile.raceDistance}km goal
+• Each day should be unique with different focus areas
+• Include proper warm-up and cooldown for each session
+• Consider their experience level (${userProfile.experience} years) and current fitness
+• Build appropriately for week ${weekNum} of ${totalWeeks}
+• Use science-based training principles for optimal performance and injury prevention`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -279,15 +359,30 @@ Dates: ${days.join(', ')}`;
         return JSON.parse(retryContent);
       } catch (e) {
         console.error(`Failed to parse retried week ${weekNum} JSON:`, retryContent);
-        return days.map(date => ({
-          date,
-          workout_type: weekNum % 2 === 1 ? 'Easy Run' : 'Rest',
-          description: 'Generated training day',
-          duration: '30 min',
-          distance: '5 km',
-          distance_km: 5.0,
-          pace: 'Easy (5:30-6:00/km)'
-        }));
+        // Create varied fallback workouts based on user profile
+        const workoutTypes = ['Easy Run', 'Tempo Run', 'Long Run', 'Intervals', 'Recovery Run', 'Rest'];
+        const distances = [3, 5, 8, 10, 12, 15];
+        const durations = ['25 min', '35 min', '45 min', '60 min', '75 min', '90 min'];
+        
+        return days.map((date, index) => {
+          const workoutType = workoutTypes[index % workoutTypes.length];
+          const distance = distances[index % distances.length];
+          const duration = durations[index % durations.length];
+          
+          return {
+            date,
+            workout_type: workoutType,
+            description: `Personalized ${workoutType} for ${userProfile.raceDistance}km goal - Warm-up: 10min easy, Main set: ${workoutType === 'Rest' ? 'Complete rest' : 'As prescribed'}, Cooldown: 10min easy`,
+            duration,
+            distance: `${distance} km`,
+            distance_km: distance,
+            pace: workoutType === 'Rest' ? 'Rest Day' : `Based on ${userProfile.goalPace} target pace`,
+            additional_training: workoutType === 'Rest' ? 'Light stretching and mobility' : 'Post-run strength exercises',
+            recovery_instructions: 'Focus on sleep, hydration, and proper nutrition',
+            nutrition_guidance: 'Pre-run: light snack, During: water/electrolytes, Post-run: protein + carbs',
+            evaluation_questions: 'How did it feel? Did you complete the session? Any notes?'
+          };
+        });
       }
     }
     throw new Error(`Week ${weekNum} generation failed: ${response.status} - ${errorData}`);
@@ -300,15 +395,29 @@ Dates: ${days.join(', ')}`;
     return JSON.parse(content);
   } catch (e) {
     console.error(`Failed to parse week ${weekNum} JSON:`, content);
-    // Fallback to simple format
-    return days.map(date => ({
-      date,
-      workout_type: weekNum % 2 === 1 ? 'Easy Run' : 'Rest',
-      description: 'Generated training day',
-      duration: '30 min',
-      distance: '5 km',
-      distance_km: 5.0,
-      pace: 'Easy (5:30-6:00/km)'
-    }));
+    // Create varied fallback workouts based on user profile
+    const workoutTypes = ['Easy Run', 'Tempo Run', 'Long Run', 'Intervals', 'Recovery Run', 'Rest'];
+    const distances = [3, 5, 8, 10, 12, 15];
+    const durations = ['25 min', '35 min', '45 min', '60 min', '75 min', '90 min'];
+    
+    return days.map((date, index) => {
+      const workoutType = workoutTypes[index % workoutTypes.length];
+      const distance = distances[index % distances.length];
+      const duration = durations[index % durations.length];
+      
+      return {
+        date,
+        workout_type: workoutType,
+        description: `Personalized ${workoutType} for ${userProfile.raceDistance}km goal - Warm-up: 10min easy, Main set: ${workoutType === 'Rest' ? 'Complete rest' : 'As prescribed'}, Cooldown: 10min easy`,
+        duration,
+        distance: `${distance} km`,
+        distance_km: distance,
+        pace: workoutType === 'Rest' ? 'Rest Day' : `Based on ${userProfile.goalPace} target pace`,
+        additional_training: workoutType === 'Rest' ? 'Light stretching and mobility' : 'Post-run strength exercises',
+        recovery_instructions: 'Focus on sleep, hydration, and proper nutrition',
+        nutrition_guidance: 'Pre-run: light snack, During: water/electrolytes, Post-run: protein + carbs',
+        evaluation_questions: 'How did it feel? Did you complete the session? Any notes?'
+      };
+    });
   }
 }

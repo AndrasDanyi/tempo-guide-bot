@@ -67,7 +67,7 @@ JSON format:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-mini-2025-04-14',
+        model: 'gpt-4o-mini',
         messages: messages,
         max_completion_tokens: 4096, // Aim high; retry logic handles caps
         // temperature not supported in GPT-4.1+ models
@@ -90,7 +90,7 @@ JSON format:
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'gpt-4.1-mini-2025-04-14',
+              model: 'gpt-4o-mini',
               messages: messages,
               max_completion_tokens: allowed,
             }),
@@ -106,7 +106,7 @@ JSON format:
         }
       }
 
-      let data = await response.json();
+      const data = await response.json();
       const assistantMessage = data.choices[0].message.content;
 
     console.log('AI Response:', assistantMessage);

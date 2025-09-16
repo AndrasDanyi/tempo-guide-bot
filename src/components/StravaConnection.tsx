@@ -46,7 +46,7 @@ const StravaConnection: React.FC<StravaConnectionProps> = ({ profile, onUpdate }
       
       console.log('Using redirect URL:', redirectUrl);
       
-      const { data, error } = await supabase.functions.invoke('strava-auth-simple', {
+      const { data, error } = await supabase.functions.invoke('strava-auth-clean', {
         body: {}
       });
 

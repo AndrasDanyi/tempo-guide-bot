@@ -214,7 +214,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
       
       console.log('Using redirect URL:', redirectUrl);
       
-      const { data, error } = await supabase.functions.invoke('strava-auth-simple', {
+      const { data, error } = await supabase.functions.invoke('strava-auth-clean', {
         body: {}
       });
 
@@ -265,7 +265,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
       console.log('Profile strava_athlete_id:', profile?.strava_athlete_id);
       
       // Call our Supabase Edge Function that fetches data from Strava API
-      const { data, error } = await supabase.functions.invoke('fetch-strava-data', {
+      const { data, error } = await supabase.functions.invoke('strava-fetch-clean', {
         body: {}
       });
 

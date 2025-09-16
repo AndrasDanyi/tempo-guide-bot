@@ -8,7 +8,6 @@ const corsHeaders = {
 };
 
 const STRAVA_CLIENT_ID = '174698';
-const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/strava-callback`;
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -67,6 +66,9 @@ serve(async (req) => {
 
     // Build Strava authorization URL with secure state token
     const scope = 'read,activity:read_all';
+    
+    // Use the Vercel URL for the redirect URI (passed from frontend)
+    const redirectUri = `${redirectUrl}/functions/v1/strava-callback`;
     
     const authUrl = new URL('https://www.strava.com/oauth/authorize');
     authUrl.searchParams.set('client_id', STRAVA_CLIENT_ID);

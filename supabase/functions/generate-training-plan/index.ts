@@ -241,7 +241,7 @@ Dates: ${days.join(', ')}`;
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini', // Faster model
+      model: 'gpt-4o', // Better quality for training plans
       messages: [
         { role: 'user', content: prompt }
       ],
@@ -264,7 +264,7 @@ Dates: ${days.join(', ')}`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4o',
           messages: [ { role: 'user', content: prompt } ],
           max_completion_tokens: allowed,
         }),

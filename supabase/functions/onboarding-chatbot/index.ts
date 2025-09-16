@@ -40,7 +40,15 @@ Current data: ${JSON.stringify(profileData)}
 Parse naturally: "half marathon" = 21km, "Sept 26" = "2025-09-26", "6 feet" = 183cm
 Default to METRIC units (km, kg, cm) unless user explicitly mentions imperial (miles, pounds, feet)
 
-IMPORTANT: You MUST extract information from the user's response and put it in the "extracted_data" field. If they give you their name, put it in extracted_data. If they tell you their goal, put it in extracted_data. This is how the system remembers what they said.
+CRITICAL EXTRACTION RULES:
+- If user gives their name → extracted_data: {"full_name": "their name"}
+- If user says "marathon" → extracted_data: {"goal": "marathon", "race_distance_km": 42.2}
+- If user says "half marathon" → extracted_data: {"goal": "half marathon", "race_distance_km": 21.1}
+- If user says "5k" → extracted_data: {"goal": "5k", "race_distance_km": 5}
+- If user says "10k" → extracted_data: {"goal": "10k", "race_distance_km": 10}
+- If user gives a date → extracted_data: {"race_date": "YYYY-MM-DD"}
+- If user gives age → extracted_data: {"age": number}
+- If user gives height → extracted_data: {"height": number}
 
 Set "ready_for_plan": true ONLY when ALL required fields are collected:
 - full_name: user's name
@@ -49,7 +57,7 @@ Set "ready_for_plan": true ONLY when ALL required fields are collected:
 - age: their age (number)
 - height: their height in cm (number)
 
-Respond with this JSON structure:
+Respond with this EXACT JSON structure:
 {
   "message": "your natural conversational response",
   "extracted_data": {"field": "value"},
@@ -142,6 +150,7 @@ Respond with this JSON structure:
       console.log('Parsed response:', parsedResponse);
       console.log('Extracted data:', parsedResponse.extracted_data);
       console.log('Missing required:', parsedResponse.missing_required);
+      console.log('Ready for plan:', parsedResponse.ready_for_plan);
     } catch (e) {
       // Enhanced fallback with better error handling
       console.warn('Failed to parse AI response as JSON:', e);

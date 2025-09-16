@@ -40,7 +40,7 @@ Current data: ${JSON.stringify(profileData)}
 Parse naturally: "half marathon" = 21km, "Sept 26" = "2025-09-26", "6 feet" = 183cm
 Default to METRIC units (km, kg, cm) unless user explicitly mentions imperial (miles, pounds, feet)
 
-Have a natural conversation. Ask follow-up questions. Extract information from their responses naturally.
+IMPORTANT: You MUST extract information from the user's response and put it in the "extracted_data" field. If they give you their name, put it in extracted_data. If they tell you their goal, put it in extracted_data. This is how the system remembers what they said.
 
 Set "ready_for_plan": true ONLY when ALL required fields are collected:
 - full_name: user's name
@@ -52,8 +52,8 @@ Set "ready_for_plan": true ONLY when ALL required fields are collected:
 Respond with this JSON structure:
 {
   "message": "your natural conversational response",
-  "extracted_data": {},
-  "missing_required": [],
+  "extracted_data": {"field": "value"},
+  "missing_required": ["list", "of", "missing", "fields"],
   "confidence": 0.8,
   "ready_for_plan": false
 }`;
@@ -121,6 +121,7 @@ Respond with this JSON structure:
 
     console.log('AI Response:', assistantMessage);
     console.log('Current profile data:', profileData);
+    console.log('User message:', message);
 
     let parsedResponse;
     try {
@@ -162,8 +163,28 @@ Respond with this JSON structure:
         });
       }
       
-      // Simple fallback - don't try to extract data if JSON parsing failed
-      // Let the AI handle extraction naturally in the next response
+      // Try to extract data from the user's message if JSON parsing failed
+      const userMessage = message.toLowerCase();
+      if (userMessage.includes('marathon') && !userMessage.includes('half')) {
+        extractedInfo.goal = 'marathon';
+        extractedInfo.race_distance_km = 42.2;
+      } else if (userMessage.includes('half marathon')) {
+        extractedInfo.goal = 'half marathon';
+        extractedInfo.race_distance_km = 21.1;
+      } else if (userMessage.includes('5k') || userMessage.includes('5 k')) {
+        extractedInfo.goal = '5k';
+        extractedInfo.race_distance_km = 5;
+      } else if (userMessage.includes('10k') || userMessage.includes('10 k')) {
+        extractedInfo.goal = '10k';
+        extractedInfo.race_distance_km = 10;
+      }
+      
+      // Update missing fields based on extracted info
+      Object.keys(extractedInfo).forEach(key => {
+        if (currentMissing.includes(key)) {
+          currentMissing.splice(currentMissing.indexOf(key), 1);
+        }
+      });
       
       // Determine if ready for plan based on missing fields
       const isReadyForPlan = currentMissing.length === 0;

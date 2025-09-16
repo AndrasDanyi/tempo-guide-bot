@@ -47,9 +47,11 @@ IMPORTANT: Set "ready_for_plan": true ONLY when ALL required fields are collecte
 - age: their age (number)
 - height: their height in cm (number)
 
+BE CONVERSATIONAL: Ask engaging questions to collect missing information. Be encouraging and supportive. If you have their name, ask about their running goal. If you have their goal, ask about their race date, etc.
+
 CRITICAL: Respond with ONLY this JSON structure, nothing else:
 {
-  "message": "friendly response",
+  "message": "your conversational response here",
   "extracted_data": {},
   "missing_required": ["list", "of", "missing", "required", "fields"],
   "confidence": 0.8,
@@ -77,8 +79,7 @@ CRITICAL: Respond with ONLY this JSON structure, nothing else:
         model: 'gpt-4o-mini',
         messages: messages,
         max_completion_tokens: 4096, // Aim high; retry logic handles caps
-        temperature: 0.1, // Low temperature for consistent JSON output
-        response_format: { type: "json_object" } // Force JSON output
+        temperature: 0.3, // Slightly higher temperature for more natural conversation
       }),
     });
 
@@ -101,8 +102,7 @@ CRITICAL: Respond with ONLY this JSON structure, nothing else:
               model: 'gpt-4o-mini',
               messages: messages,
               max_completion_tokens: allowed,
-              temperature: 0.1,
-              response_format: { type: "json_object" }
+              temperature: 0.3,
             }),
           });
           if (!retry.ok) {

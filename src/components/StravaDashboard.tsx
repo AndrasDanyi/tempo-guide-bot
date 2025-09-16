@@ -34,7 +34,8 @@ import {
   Trophy,      // For achievements/PRs
   Target,      // For goals/targets
   Zap,         // For Strava branding and sync actions
-  Loader2      // For loading states
+  Loader2,     // For loading states
+  ExternalLink // For connect button
 } from "lucide-react";
 
 // ============================================================================
@@ -98,6 +99,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
   const [bestEfforts, setBestEfforts] = useState<StravaBestEffort[]>([]); // Personal records and achievements
   const [loading, setLoading] = useState(true);                   // Loading state for initial data fetch
   const [refreshing, setRefreshing] = useState(false);            // Loading state for manual sync
+  const [isConnecting, setIsConnecting] = useState(false);        // Loading state for Strava connection
 
   // ============================================================================
   // SIDE EFFECTS (useEffect hooks)
@@ -190,6 +192,67 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
   };
 
   // ============================================================================
+  // STRAVA CONNECTION FUNCTION
+  // ============================================================================
+  // This function initiates the Strava OAuth connection process
+  
+  const handleConnectStrava = async () => {
+    if (!profile?.user_id) {
+      toast.error('User profile not found');
+      return;
+    }
+
+    setIsConnecting(true);
+    
+    try {
+      console.log('Starting Strava connection process...');
+      console.log('Profile user_id:', profile.user_id);
+      console.log('Redirect URL:', window.location.origin);
+      
+      // Use the current origin as redirect URL
+      const redirectUrl = window.location.origin;
+      
+      console.log('Using redirect URL:', redirectUrl);
+      
+      const { data, error } = await supabase.functions.invoke('strava-auth', {
+        body: {
+          redirectUrl: redirectUrl
+        }
+      });
+
+      console.log('Strava auth response:', { data, error });
+
+      if (error) {
+        console.error('Error getting Strava auth URL:', error);
+        let errorMessage = 'Failed to connect to Strava';
+        if (error.message?.includes('redirect_uri_mismatch')) {
+          errorMessage = 'Strava app configuration issue. Please check redirect URL settings.';
+        } else if (error.message?.includes('invalid_client')) {
+          errorMessage = 'Strava app credentials issue. Please check client ID and secret.';
+        } else if (error.message) {
+          errorMessage = `Strava connection error: ${error.message}`;
+        }
+        toast.error(errorMessage);
+        return;
+      }
+
+      if (data?.authUrl) {
+        console.log('Redirecting to Strava auth URL:', data.authUrl);
+        // Open Strava authorization in current window
+        window.location.href = data.authUrl;
+      } else {
+        throw new Error('No authorization URL received');
+      }
+
+    } catch (error) {
+      console.error('Error connecting to Strava:', error);
+      toast.error(`Failed to connect to Strava: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  // ============================================================================
   // MANUAL SYNC FUNCTION
   // ============================================================================
   // This function manually triggers a sync with Strava to fetch the latest data
@@ -216,6 +279,10 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
           errorMessage = 'Please connect to Strava first in your profile settings';
         } else if (error.message?.includes('non-2xx status code')) {
           errorMessage = 'Strava connection issue. Please try reconnecting to Strava.';
+        } else if (error.message?.includes('Failed to fetch stats')) {
+          errorMessage = 'Strava API error. Your token may have expired. Please reconnect to Strava.';
+        } else if (error.message?.includes('Failed to refresh Strava token')) {
+          errorMessage = 'Strava token expired. Please reconnect to Strava.';
         } else if (error.message) {
           errorMessage = `Error: ${error.message}`;
         }
@@ -313,7 +380,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
   // ============================================================================
   // Show different content based on Strava connection status and loading states
   
-  // If user is not connected to Strava, show connection prompt
+  // If user is not connected to Strava, show connection prompt with Connect button
   if (!profile?.strava_connected) {
     return (
       <Card className="mt-6">
@@ -327,11 +394,29 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
           <div className="text-center py-8">
             <Zap className="h-12 w-12 text-orange-500 mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">Connect to Strava</h3>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-muted-foreground mb-6">
               Connect your Strava account to import your training data and get personalized training plans.
             </p>
-            <p className="text-sm text-muted-foreground">
-              Go to your profile settings to connect to Strava.
+            <Button
+              onClick={handleConnectStrava}
+              disabled={isConnecting}
+              size="lg"
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              {isConnecting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Connect to Strava
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground mt-4">
+              You can also connect to Strava in your profile settings.
             </p>
           </div>
         </CardContent>

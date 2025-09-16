@@ -39,11 +39,10 @@ const StravaConnection: React.FC<StravaConnectionProps> = ({ profile, onUpdate }
       console.log('Profile user_id:', profile.user_id);
       console.log('Redirect URL:', window.location.origin);
       
-      // For localhost development, we need to use a public URL for Strava redirect
-      // You can either deploy your app or use ngrok to get a public URL
-      const redirectUrl = window.location.origin.includes('localhost') 
-        ? 'https://your-app-domain.com' // Replace with your deployed app URL
-        : window.location.origin;
+      // Use the current origin as redirect URL
+      // For production, this will be your deployed app URL
+      // For localhost, this will be http://localhost:5173 (or whatever port you're using)
+      const redirectUrl = window.location.origin;
       
       console.log('Using redirect URL:', redirectUrl);
       
@@ -57,7 +56,15 @@ const StravaConnection: React.FC<StravaConnectionProps> = ({ profile, onUpdate }
 
       if (error) {
         console.error('Error getting Strava auth URL:', error);
-        toast.error(`Failed to connect to Strava: ${error.message || 'Unknown error'}`);
+        let errorMessage = 'Failed to connect to Strava';
+        if (error.message?.includes('redirect_uri_mismatch')) {
+          errorMessage = 'Strava app configuration issue. Please check redirect URL settings.';
+        } else if (error.message?.includes('invalid_client')) {
+          errorMessage = 'Strava app credentials issue. Please check client ID and secret.';
+        } else if (error.message) {
+          errorMessage = `Strava connection error: ${error.message}`;
+        }
+        toast.error(errorMessage);
         return;
       }
 

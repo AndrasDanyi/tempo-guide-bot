@@ -29,8 +29,8 @@ serve(async (req) => {
 
     const { message, conversationHistory, profileData } = await req.json();
 
-// Optimize prompt to reduce token usage while maintaining functionality
-const systemPrompt = `You are a friendly AI running coach collecting profile data. You MUST respond with ONLY valid JSON - no code blocks, no explanations, just pure JSON.
+// Natural conversation approach that was working before
+const systemPrompt = `You are a friendly AI running coach collecting profile data. Have a natural conversation and extract information as you go.
 
 REQUIRED FIELDS: full_name, goal, race_date (YYYY-MM-DD), age, height (cm)
 OPTIONAL: gender, weight_kg, experience_years, weekly_mileage, race_distance_km, goal_pace_per_km, days_per_week, training_history, injuries, units (default: metric)
@@ -40,29 +40,20 @@ Current data: ${JSON.stringify(profileData)}
 Parse naturally: "half marathon" = 21km, "Sept 26" = "2025-09-26", "6 feet" = 183cm
 Default to METRIC units (km, kg, cm) unless user explicitly mentions imperial (miles, pounds, feet)
 
-DATA EXTRACTION RULES:
-- If user says "marathon" → goal: "marathon", race_distance_km: 42.2
-- If user says "half marathon" → goal: "half marathon", race_distance_km: 21.1
-- If user says "5k" → goal: "5k", race_distance_km: 5
-- If user says "10k" → goal: "10k", race_distance_km: 10
-- If user gives a date → race_date: "YYYY-MM-DD"
-- If user gives age → age: number
-- If user gives height → height: number (in cm)
+Have a natural conversation. Ask follow-up questions. Extract information from their responses naturally.
 
-IMPORTANT: Set "ready_for_plan": true ONLY when ALL required fields are collected:
+Set "ready_for_plan": true ONLY when ALL required fields are collected:
 - full_name: user's name
-- goal: their running goal
+- goal: their running goal  
 - race_date: target race date (YYYY-MM-DD format)
 - age: their age (number)
 - height: their height in cm (number)
 
-BE CONVERSATIONAL: Ask engaging questions to collect missing information. Be encouraging and supportive. If you have their name, ask about their running goal. If you have their goal, ask about their race date, etc.
-
-CRITICAL: Respond with ONLY this JSON structure, nothing else:
+Respond with this JSON structure:
 {
-  "message": "your conversational response here",
-  "extracted_data": {"field": "value"},
-  "missing_required": ["list", "of", "missing", "required", "fields"],
+  "message": "your natural conversational response",
+  "extracted_data": {},
+  "missing_required": [],
   "confidence": 0.8,
   "ready_for_plan": false
 }`;
@@ -88,7 +79,7 @@ CRITICAL: Respond with ONLY this JSON structure, nothing else:
         model: 'gpt-4o-mini',
         messages: messages,
         max_completion_tokens: 4096, // Aim high; retry logic handles caps
-        temperature: 0.3, // Slightly higher temperature for more natural conversation
+        temperature: 0.7, // Higher temperature for more natural conversation
       }),
     });
 
@@ -111,7 +102,7 @@ CRITICAL: Respond with ONLY this JSON structure, nothing else:
               model: 'gpt-4o-mini',
               messages: messages,
               max_completion_tokens: allowed,
-              temperature: 0.3,
+              temperature: 0.7,
             }),
           });
           if (!retry.ok) {
@@ -171,28 +162,8 @@ CRITICAL: Respond with ONLY this JSON structure, nothing else:
         });
       }
       
-      // Try to extract data from the user's message if JSON parsing failed
-      const userMessage = message.toLowerCase();
-      if (userMessage.includes('marathon') && !userMessage.includes('half')) {
-        extractedInfo.goal = 'marathon';
-        extractedInfo.race_distance_km = 42.2;
-      } else if (userMessage.includes('half marathon')) {
-        extractedInfo.goal = 'half marathon';
-        extractedInfo.race_distance_km = 21.1;
-      } else if (userMessage.includes('5k') || userMessage.includes('5 k')) {
-        extractedInfo.goal = '5k';
-        extractedInfo.race_distance_km = 5;
-      } else if (userMessage.includes('10k') || userMessage.includes('10 k')) {
-        extractedInfo.goal = '10k';
-        extractedInfo.race_distance_km = 10;
-      }
-      
-      // Update missing fields based on extracted info
-      Object.keys(extractedInfo).forEach(key => {
-        if (currentMissing.includes(key)) {
-          currentMissing.splice(currentMissing.indexOf(key), 1);
-        }
-      });
+      // Simple fallback - don't try to extract data if JSON parsing failed
+      // Let the AI handle extraction naturally in the next response
       
       // Determine if ready for plan based on missing fields
       const isReadyForPlan = currentMissing.length === 0;

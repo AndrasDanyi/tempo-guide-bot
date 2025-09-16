@@ -42,18 +42,30 @@ Default to METRIC units (km, kg, cm) unless user explicitly mentions imperial (m
 
 CRITICAL EXTRACTION RULES - YOU MUST EXTRACT DATA:
 - If user gives their name (like "andy", "peter", "john") → extracted_data: {"full_name": "Andy"}
-- If user says "marathon" → extracted_data: {"goal": "marathon", "race_distance_km": 42.2}
-- If user says "half marathon" → extracted_data: {"goal": "half marathon", "race_distance_km": 21.1}
-- If user says "5k" → extracted_data: {"goal": "5k", "race_distance_km": 5}
-- If user says "10k" → extracted_data: {"goal": "10k", "race_distance_km": 10}
+- If user gives ANY running goal → extracted_data: {"goal": "exact user goal text", "race_distance_km": extracted_distance}
 - If user gives a date → extracted_data: {"race_date": "YYYY-MM-DD"} (use smart year logic: if date is after today, assume this year; if before today, assume next year)
 - If user gives age → extracted_data: {"age": number}
 - If user gives height → extracted_data: {"height": number}
+
+GOAL EXTRACTION RULES - BE FLEXIBLE:
+- Extract the EXACT goal text as the user said it
+- Try to extract distance from the goal if mentioned
+- Examples:
+  * "run 12 km" → {"goal": "run 12 km", "race_distance_km": 12}
+  * "run 120km with 3000m elevation" → {"goal": "run 120km with 3000m elevation", "race_distance_km": 120}
+  * "run a 10k under 40 mins" → {"goal": "run a 10k under 40 mins", "race_distance_km": 10}
+  * "marathon" → {"goal": "marathon", "race_distance_km": 42.2}
+  * "half marathon" → {"goal": "half marathon", "race_distance_km": 21.1}
+  * "5k" → {"goal": "5k", "race_distance_km": 5}
+  * "10k" → {"goal": "10k", "race_distance_km": 10}
 
 EXAMPLES:
 - If user says "andy" when asked for name → extracted_data: {"full_name": "Andy"}
 - If user says "sept 26" (and today is before Sept 26) → extracted_data: {"race_date": "2025-09-26"}
 - If user says "march 15" (and today is after March 15) → extracted_data: {"race_date": "2026-03-15"}
+- If user says "run 12 km" → extracted_data: {"goal": "run 12 km", "race_distance_km": 12}
+- If user says "run 120km with 3000m elevation" → extracted_data: {"goal": "run 120km with 3000m elevation", "race_distance_km": 120}
+- If user says "run a 10k under 40 mins" → extracted_data: {"goal": "run a 10k under 40 mins", "race_distance_km": 10}
 - If user says "marathon" → extracted_data: {"goal": "marathon", "race_distance_km": 42.2}
 - If user says "32" when asked for age → extracted_data: {"age": 32}
 - If user says "182" when asked for height → extracted_data: {"height": 182}
@@ -225,19 +237,46 @@ Respond with this EXACT JSON structure:
         extractedInfo.height = heightCm;
       }
       
-      // Extract running goals
-      if (userMessage.includes('marathon') && !userMessage.includes('half')) {
-        extractedInfo.goal = 'marathon';
-        extractedInfo.race_distance_km = 42.2;
-      } else if (userMessage.includes('half marathon')) {
-        extractedInfo.goal = 'half marathon';
-        extractedInfo.race_distance_km = 21.1;
-      } else if (userMessage.includes('5k') || userMessage.includes('5 k')) {
-        extractedInfo.goal = '5k';
-        extractedInfo.race_distance_km = 5;
-      } else if (userMessage.includes('10k') || userMessage.includes('10 k')) {
-        extractedInfo.goal = '10k';
-        extractedInfo.race_distance_km = 10;
+      // Extract running goals - be flexible and extract any goal
+      if (userMessage.includes('run') || userMessage.includes('marathon') || userMessage.includes('k') || userMessage.includes('km') || userMessage.includes('mile')) {
+        // Extract the exact goal text
+        extractedInfo.goal = message.trim();
+        
+        // Try to extract distance from the goal
+        let distance = null;
+        
+        // Look for distance patterns
+        const kmMatch = userMessage.match(/(\d+(?:\.\d+)?)\s*km/i);
+        if (kmMatch) {
+          distance = parseFloat(kmMatch[1]);
+        } else {
+          const kMatch = userMessage.match(/(\d+(?:\.\d+)?)\s*k\b/i);
+          if (kMatch) {
+            distance = parseFloat(kMatch[1]);
+          } else {
+            const mileMatch = userMessage.match(/(\d+(?:\.\d+)?)\s*mile/i);
+            if (mileMatch) {
+              distance = parseFloat(mileMatch[1]) * 1.60934; // convert miles to km
+            }
+          }
+        }
+        
+        // If no distance found, try common race distances
+        if (!distance) {
+          if (userMessage.includes('marathon') && !userMessage.includes('half')) {
+            distance = 42.2;
+          } else if (userMessage.includes('half marathon')) {
+            distance = 21.1;
+          } else if (userMessage.includes('5k') || userMessage.includes('5 k')) {
+            distance = 5;
+          } else if (userMessage.includes('10k') || userMessage.includes('10 k')) {
+            distance = 10;
+          }
+        }
+        
+        if (distance) {
+          extractedInfo.race_distance_km = distance;
+        }
       }
       
       // Extract dates with smart year logic

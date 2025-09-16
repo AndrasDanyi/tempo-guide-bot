@@ -46,18 +46,15 @@ CRITICAL EXTRACTION RULES - YOU MUST EXTRACT DATA:
 - If user says "half marathon" → extracted_data: {"goal": "half marathon", "race_distance_km": 21.1}
 - If user says "5k" → extracted_data: {"goal": "5k", "race_distance_km": 5}
 - If user says "10k" → extracted_data: {"goal": "10k", "race_distance_km": 10}
-- If user gives a date → extracted_data: {"race_date": "YYYY-MM-DD"}
+- If user gives a date → extracted_data: {"race_date": "YYYY-MM-DD"} (use smart year logic: if date is after today, assume this year; if before today, assume next year)
 - If user gives age → extracted_data: {"age": number}
 - If user gives height → extracted_data: {"height": number}
 
-EXAMPLE: If user says "andy" when asked for name, you MUST respond with:
-{
-  "message": "Nice to meet you, Andy! What's your running goal?",
-  "extracted_data": {"full_name": "Andy"},
-  "missing_required": ["goal", "race_date", "age", "height"],
-  "confidence": 0.9,
-  "ready_for_plan": false
-}
+EXAMPLES:
+- If user says "andy" when asked for name → extracted_data: {"full_name": "Andy"}
+- If user says "sept 26" (and today is before Sept 26) → extracted_data: {"race_date": "2025-09-26"}
+- If user says "march 15" (and today is after March 15) → extracted_data: {"race_date": "2026-03-15"}
+- If user says "marathon" → extracted_data: {"goal": "marathon", "race_distance_km": 42.2}
 
 Set "ready_for_plan": true ONLY when ALL required fields are collected:
 - full_name: user's name
@@ -202,6 +199,55 @@ Respond with this EXACT JSON structure:
       } else if (userMessage.includes('10k') || userMessage.includes('10 k')) {
         extractedInfo.goal = '10k';
         extractedInfo.race_distance_km = 10;
+      }
+      
+      // Extract dates with smart year logic
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth() + 1; // getMonth() is 0-based
+      const currentDay = today.getDate();
+      
+      // Simple date patterns (month day or day month)
+      const datePatterns = [
+        /(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|september|oct|october|nov|november|dec|december)\s+(\d{1,2})/i,
+        /(\d{1,2})\s+(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|september|oct|october|nov|november|dec|december)/i
+      ];
+      
+      for (const pattern of datePatterns) {
+        const match = userMessage.match(pattern);
+        if (match) {
+          let month, day;
+          if (pattern.source.includes('\\d{1,2}\\s+')) {
+            // day month format
+            day = parseInt(match[1]);
+            month = match[2];
+          } else {
+            // month day format
+            month = match[1];
+            day = parseInt(match[2]);
+          }
+          
+          // Convert month name to number
+          const monthNames = {
+            'jan': 1, 'january': 1, 'feb': 2, 'february': 2, 'mar': 3, 'march': 3,
+            'apr': 4, 'april': 4, 'may': 5, 'jun': 6, 'june': 6, 'jul': 7, 'july': 7,
+            'aug': 8, 'august': 8, 'sep': 9, 'september': 9, 'oct': 10, 'october': 10,
+            'nov': 11, 'november': 11, 'dec': 12, 'december': 12
+          };
+          
+          const monthNum = monthNames[month.toLowerCase()];
+          if (monthNum && day >= 1 && day <= 31) {
+            // Smart year logic: if date is after today, assume this year; if before today, assume next year
+            let year = currentYear;
+            if (monthNum < currentMonth || (monthNum === currentMonth && day < currentDay)) {
+              year = currentYear + 1;
+            }
+            
+            const raceDate = `${year}-${monthNum.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            extractedInfo.race_date = raceDate;
+            break;
+          }
+        }
       }
       
       // Update missing fields based on extracted info

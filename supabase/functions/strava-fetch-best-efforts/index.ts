@@ -91,12 +91,13 @@ serve(async (req) => {
     }
 
     // Fetch all-time personal records from Strava
-    // We'll fetch a large number of activities to get comprehensive best efforts
     console.log('Fetching all-time activities for best efforts...');
     
     const allBestEfforts = [];
     let page = 1;
-    const maxPages = 10; // Fetch up to 1000 activities (10 pages * 100 per page)
+    const maxPages = 5; // Fetch up to 500 activities (5 pages * 100 per page)
+    let totalActivitiesProcessed = 0;
+    let activitiesWithBestEfforts = 0;
     
     while (page <= maxPages) {
       console.log(`Fetching activities page ${page}...`);
@@ -120,24 +121,32 @@ serve(async (req) => {
         break;
       }
 
+      totalActivitiesProcessed += activities.length;
+
       // Extract best efforts from this page of activities
       for (const activity of activities) {
+        console.log(`Processing activity: ${activity.name} (ID: ${activity.id})`);
+        console.log(`Activity has best_efforts: ${!!activity.best_efforts}, count: ${activity.best_efforts?.length || 0}`);
+        
         if (activity.best_efforts && activity.best_efforts.length > 0) {
+          activitiesWithBestEfforts++;
+          console.log(`Activity ${activity.name} has ${activity.best_efforts.length} best efforts`);
+          
           for (const effort of activity.best_efforts) {
-            // Only include personal records (pr_rank = 1) or top achievements
-            if (effort.pr_rank === 1 || effort.achievement_rank <= 3) {
-              allBestEfforts.push({
-                strava_effort_id: effort.id,
-                activity_id: activity.id,
-                name: effort.name,
-                distance: effort.distance,
-                elapsed_time: effort.elapsed_time,
-                moving_time: effort.moving_time,
-                start_date: effort.start_date,
-                achievement_rank: effort.achievement_rank,
-                pr_rank: effort.pr_rank
-              });
-            }
+            console.log(`Best effort: ${effort.name}, pr_rank: ${effort.pr_rank}, achievement_rank: ${effort.achievement_rank}`);
+            
+            // Include all best efforts, not just PRs - we'll filter later
+            allBestEfforts.push({
+              strava_effort_id: effort.id,
+              activity_id: activity.id,
+              name: effort.name,
+              distance: effort.distance,
+              elapsed_time: effort.elapsed_time,
+              moving_time: effort.moving_time,
+              start_date: effort.start_date,
+              achievement_rank: effort.achievement_rank,
+              pr_rank: effort.pr_rank
+            });
           }
         }
       }
@@ -145,7 +154,44 @@ serve(async (req) => {
       page++;
     }
 
+    console.log(`Total activities processed: ${totalActivitiesProcessed}`);
+    console.log(`Activities with best efforts: ${activitiesWithBestEfforts}`);
     console.log(`Total best efforts found: ${allBestEfforts.length}`);
+
+    // If we found best efforts, let's also try to get some from the athlete stats
+    if (allBestEfforts.length === 0) {
+      console.log('No best efforts found in activities, trying athlete stats...');
+      
+      try {
+        const statsResponse = await fetch('https://www.strava.com/api/v3/athletes/me/stats', {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
+
+        if (statsResponse.ok) {
+          const stats = await statsResponse.json();
+          console.log('Athlete stats:', JSON.stringify(stats, null, 2));
+          
+          // Create some basic best efforts from stats if available
+          if (stats.biggest_ride_distance) {
+            allBestEfforts.push({
+              strava_effort_id: `stats-ride-${Date.now()}`,
+              activity_id: null,
+              name: 'Longest Ride',
+              distance: stats.biggest_ride_distance,
+              elapsed_time: null,
+              moving_time: null,
+              start_date: new Date().toISOString(),
+              achievement_rank: null,
+              pr_rank: 1
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching athlete stats:', error);
+      }
+    }
 
     // Store best efforts in database
     if (allBestEfforts.length > 0) {

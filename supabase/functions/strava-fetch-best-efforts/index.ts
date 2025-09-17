@@ -90,109 +90,112 @@ serve(async (req) => {
       }
     }
 
-    // Fetch athlete's personal records from Strava
-    console.log('Fetching athlete stats for personal records...');
+    // Fetch activities and calculate best efforts for specific distances
+    console.log('Fetching activities to calculate best efforts for specific distances...');
     
     const allBestEfforts = [];
     
     try {
-      const statsResponse = await fetch('https://www.strava.com/api/v3/athletes/me/stats', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!statsResponse.ok) {
-        throw new Error(`Strava API error: ${statsResponse.status} ${statsResponse.statusText}`);
-      }
-
-      const stats = await statsResponse.json();
-      console.log('Athlete stats received:', JSON.stringify(stats, null, 2));
-
-      // Extract personal records from the stats
-      if (stats.biggest_ride_distance) {
-        allBestEfforts.push({
-          id: `pr-ride-distance-${Date.now()}`,
-          strava_effort_id: `pr-ride-distance-${Date.now()}`,
-          activity_id: null,
-          name: 'Longest Ride',
-          distance: stats.biggest_ride_distance,
-          elapsed_time: null,
-          moving_time: null,
-          start_date: new Date().toISOString(),
-          achievement_rank: null,
-          pr_rank: 1
-        });
-      }
-
-      if (stats.biggest_climb_elevation_gain) {
-        allBestEfforts.push({
-          id: `pr-climb-elevation-${Date.now()}`,
-          strava_effort_id: `pr-climb-elevation-${Date.now()}`,
-          activity_id: null,
-          name: 'Biggest Climb',
-          distance: null,
-          elapsed_time: null,
-          moving_time: null,
-          start_date: new Date().toISOString(),
-          achievement_rank: null,
-          pr_rank: 1
-        });
-      }
-
-      // Note: Strava's API doesn't directly provide the "All-Time PRs" data
-      // that you see on the web interface. Those are calculated by Strava
-      // and not exposed through the public API.
-      
-      console.log('Personal records extracted from stats:', allBestEfforts.length);
-      
-    } catch (error) {
-      console.error('Error fetching athlete stats:', error);
-    }
-
-    // Since Strava's API doesn't provide the All-Time PRs directly,
-    // we'll fetch recent activities and look for best efforts
-    console.log('Fetching recent activities for best efforts...');
-    
-    try {
+      // Fetch more activities to get better coverage
       const activitiesResponse = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=200', {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
         },
       });
 
-      if (activitiesResponse.ok) {
-        const activities = await activitiesResponse.json();
-        console.log(`Found ${activities.length} recent activities`);
+      if (!activitiesResponse.ok) {
+        throw new Error(`Strava API error: ${activitiesResponse.status} ${activitiesResponse.statusText}`);
+      }
 
-        // Look for activities with best efforts
-        for (const activity of activities) {
-          if (activity.best_efforts && activity.best_efforts.length > 0) {
-            for (const effort of activity.best_efforts) {
-              // Only include personal records (pr_rank = 1)
-              if (effort.pr_rank === 1) {
-                allBestEfforts.push({
-                  id: effort.id,
-                  strava_effort_id: effort.id,
-                  activity_id: activity.id,
-                  name: effort.name,
-                  distance: effort.distance,
-                  elapsed_time: effort.elapsed_time,
-                  moving_time: effort.moving_time,
-                  start_date: effort.start_date,
-                  achievement_rank: effort.achievement_rank,
-                  pr_rank: effort.pr_rank
-                });
-              }
+      const activities = await activitiesResponse.json();
+      console.log(`Found ${activities.length} activities`);
+
+      // Filter for running activities only
+      const runningActivities = activities.filter(activity => 
+        activity.type === 'Run' && 
+        activity.distance && 
+        activity.moving_time && 
+        activity.distance > 0 && 
+        activity.moving_time > 0
+      );
+
+      console.log(`Found ${runningActivities.length} running activities`);
+
+      // Target distances in meters
+      const targetDistances = [
+        { name: '1K', distance: 1000 },
+        { name: '5K', distance: 5000 },
+        { name: '10K', distance: 10000 },
+        { name: 'Half Marathon', distance: 21097.5 },
+        { name: 'Marathon', distance: 42195 },
+        { name: '50K', distance: 50000 }
+      ];
+
+      // Initialize best times for each distance
+      const bestTimes = {};
+      const bestActivities = {};
+      
+      for (const target of targetDistances) {
+        bestTimes[target.name] = null;
+        bestActivities[target.name] = null;
+      }
+
+      console.log(`Analyzing ${runningActivities.length} activities for best efforts...`);
+
+      // Analyze each activity for best segments
+      for (const activity of runningActivities) {
+        const activityDistance = activity.distance; // in meters
+        const activityTime = activity.moving_time; // in seconds
+        const activityPace = activityTime / activityDistance; // seconds per meter
+
+        console.log(`Analyzing: ${activity.name} - ${(activityDistance/1000).toFixed(2)}km in ${Math.floor(activityTime/60)}:${(activityTime%60).toString().padStart(2,'0')}`);
+
+        // For each target distance, check if this activity can provide a better time
+        for (const target of targetDistances) {
+          // Only consider activities that are at least as long as the target distance
+          if (activityDistance >= target.distance) {
+            // Calculate the best possible time for this distance based on the activity's pace
+            // This assumes the runner maintained their average pace for the entire distance
+            const estimatedTime = Math.round(activityPace * target.distance);
+            
+            console.log(`  ${target.name}: Estimated ${Math.floor(estimatedTime/60)}:${(estimatedTime%60).toString().padStart(2,'0')} (pace: ${(activityPace*1000).toFixed(2)}s/1000m)`);
+            
+            // Update best time if this is better
+            if (!bestTimes[target.name] || estimatedTime < bestTimes[target.name]) {
+              bestTimes[target.name] = estimatedTime;
+              bestActivities[target.name] = activity;
+              console.log(`  New best ${target.name}: ${Math.floor(estimatedTime/60)}:${(estimatedTime%60).toString().padStart(2,'0')} from ${activity.name}`);
             }
           }
         }
       }
+
+      // Add the best efforts to the results
+      for (const target of targetDistances) {
+        if (bestTimes[target.name] && bestActivities[target.name]) {
+          allBestEfforts.push({
+            id: `calculated-${target.name.toLowerCase().replace(' ', '-')}-${Date.now()}`,
+            strava_effort_id: `calculated-${target.name.toLowerCase().replace(' ', '-')}-${Date.now()}`,
+            activity_id: bestActivities[target.name].id,
+            name: target.name,
+            distance: target.distance,
+            elapsed_time: bestTimes[target.name],
+            moving_time: bestTimes[target.name],
+            start_date: bestActivities[target.name].start_date,
+            achievement_rank: null,
+            pr_rank: 1
+          });
+          console.log(`Final best ${target.name}: ${Math.floor(bestTimes[target.name]/60)}:${(bestTimes[target.name]%60).toString().padStart(2,'0')} from activity ${bestActivities[target.name].name}`);
+        } else {
+          console.log(`No ${target.name} effort found in recent activities`);
+        }
+      }
+
     } catch (error) {
-      console.error('Error fetching activities for best efforts:', error);
+      console.error('Error fetching activities for best efforts calculation:', error);
     }
 
-    console.log(`Total personal records found: ${allBestEfforts.length}`);
+    console.log(`Total calculated best efforts: ${allBestEfforts.length}`);
 
     // Store best efforts in database
     if (allBestEfforts.length > 0) {

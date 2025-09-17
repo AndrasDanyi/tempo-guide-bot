@@ -65,12 +65,34 @@ interface StravaActivity {
   name: string;                  // Activity name (e.g., "Morning Run")
   activity_type: string;         // Type of activity (Run, Ride, etc.)
   start_date: string;            // When the activity started
+  // Basic Metrics
   distance: number;              // Distance in meters
   moving_time: number;           // Moving time in seconds
+  elapsed_time: number;          // Total elapsed time in seconds
   average_speed: number;         // Average speed in meters per second
-  average_heartrate?: number;    // Average heart rate (optional)
-  total_elevation_gain?: number; // Total elevation gain (optional)
-  suffer_score?: number;         // Strava's difficulty rating (optional)
+  max_speed: number;             // Maximum speed in meters per second
+  // Elevation
+  total_elevation_gain?: number; // Total elevation gain in meters
+  elev_high?: number;            // Maximum elevation in meters
+  elev_low?: number;             // Minimum elevation in meters
+  // Heart Rate
+  average_heartrate?: number;    // Average heart rate in bpm
+  max_heartrate?: number;        // Maximum heart rate in bpm
+  // Power (for cycling)
+  average_watts?: number;        // Average power in watts
+  max_watts?: number;            // Maximum power in watts
+  weighted_average_watts?: number; // Weighted average power in watts
+  kilojoules?: number;           // Total energy in kilojoules
+  // Cadence (for cycling)
+  average_cadence?: number;      // Average cadence in rpm
+  // Location
+  start_latlng?: number[];       // Starting coordinates [lat, lng]
+  end_latlng?: number[];         // Ending coordinates [lat, lng]
+  map_summary_polyline?: string; // Encoded polyline of route
+  // Additional metrics
+  suffer_score?: number;         // Strava's difficulty rating
+  kudos_count?: number;          // Number of kudos received
+  achievement_count?: number;    // Number of achievements
 }
 
 // Structure of Strava best efforts (personal records, segment times)
@@ -440,6 +462,37 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
     }
   };
 
+  // Convert elevation from meters to readable format
+  const formatElevation = (elevation: number) => {
+    if (!elevation || elevation === 0) return 'N/A';
+    return `${Math.round(elevation)}m`;
+  };
+
+  // Convert speed to max speed display (km/h)
+  const formatMaxSpeed = (speed: number) => {
+    if (!speed || speed === 0) return 'N/A';
+    const kmh = (speed * 3.6).toFixed(1);
+    return `${kmh} km/h`;
+  };
+
+  // Convert power to readable format
+  const formatPower = (watts: number) => {
+    if (!watts || watts === 0) return 'N/A';
+    return `${Math.round(watts)}W`;
+  };
+
+  // Convert cadence to readable format
+  const formatCadence = (cadence: number) => {
+    if (!cadence || cadence === 0) return 'N/A';
+    return `${Math.round(cadence)} rpm`;
+  };
+
+  // Convert coordinates to readable format
+  const formatCoordinates = (coords: number[]) => {
+    if (!coords || coords.length !== 2) return 'N/A';
+    return `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}`;
+  };
+
   // ============================================================================
   // CONDITIONAL RENDERING LOGIC
   // ============================================================================
@@ -580,7 +633,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
               </div>
             ) : (
               activities.map((activity) => (
-                <div key={activity.id} className="border rounded-lg p-4 space-y-2">
+                <div key={activity.id} className="border rounded-lg p-4 space-y-3">
                   <div className="flex justify-between items-start">
                     <h3 className="font-medium">{activity.name}</h3>
                     <Badge variant="secondary">
@@ -588,7 +641,8 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                     </Badge>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-4 text-sm">
+                  {/* Basic Metrics */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div className="flex items-center gap-1">
                       <MapPin className="h-3 w-3 text-blue-500" />
                       <span className="font-medium">Distance:</span>
@@ -604,14 +658,126 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                       <span className="font-medium">Pace:</span>
                       <span>{formatPace(activity.average_speed)}</span>
                     </div>
+                    <div className="flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3 text-purple-500" />
+                      <span className="font-medium">Max Speed:</span>
+                      <span>{formatMaxSpeed(activity.max_speed)}</span>
+                    </div>
                   </div>
-                  
-                  {activity.average_heartrate && (
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Heart className="h-3 w-3 text-red-500" />
-                      <span>Avg HR: {Math.round(activity.average_heartrate)} bpm</span>
+
+                  {/* Elevation Data */}
+                  {(activity.total_elevation_gain || activity.elev_high || activity.elev_low) && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-muted-foreground">
+                      {activity.total_elevation_gain && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">Elevation Gain:</span>
+                          <span>{formatElevation(activity.total_elevation_gain)}</span>
+                        </div>
+                      )}
+                      {activity.elev_high && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">Max Elevation:</span>
+                          <span>{formatElevation(activity.elev_high)}</span>
+                        </div>
+                      )}
+                      {activity.elev_low && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">Min Elevation:</span>
+                          <span>{formatElevation(activity.elev_low)}</span>
+                        </div>
+                      )}
                     </div>
                   )}
+                  
+                  {/* Heart Rate Data */}
+                  {(activity.average_heartrate || activity.max_heartrate) && (
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Heart className="h-3 w-3 text-red-500" />
+                        <span className="font-medium">Avg HR:</span>
+                        <span>{activity.average_heartrate ? `${Math.round(activity.average_heartrate)} bpm` : 'N/A'}</span>
+                      </div>
+                      {activity.max_heartrate && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">Max HR:</span>
+                          <span>{Math.round(activity.max_heartrate)} bpm</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Power Data (for cycling) */}
+                  {(activity.average_watts || activity.max_watts || activity.kilojoules) && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-muted-foreground">
+                      {activity.average_watts && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">Avg Power:</span>
+                          <span>{formatPower(activity.average_watts)}</span>
+                        </div>
+                      )}
+                      {activity.max_watts && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">Max Power:</span>
+                          <span>{formatPower(activity.max_watts)}</span>
+                        </div>
+                      )}
+                      {activity.kilojoules && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">Energy:</span>
+                          <span>{Math.round(activity.kilojoules)} kJ</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Cadence Data (for cycling) */}
+                  {activity.average_cadence && (
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <span className="font-medium">Avg Cadence:</span>
+                      <span>{formatCadence(activity.average_cadence)}</span>
+                    </div>
+                  )}
+
+                  {/* Location Data */}
+                  {(activity.start_latlng || activity.end_latlng) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-muted-foreground">
+                      {activity.start_latlng && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">Start:</span>
+                          <span className="font-mono text-xs">{formatCoordinates(activity.start_latlng)}</span>
+                        </div>
+                      )}
+                      {activity.end_latlng && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">End:</span>
+                          <span className="font-mono text-xs">{formatCoordinates(activity.end_latlng)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Additional Metrics */}
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    {activity.kudos_count && activity.kudos_count > 0 && (
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium">Kudos:</span>
+                        <span>{activity.kudos_count}</span>
+                      </div>
+                    )}
+                    {activity.achievement_count && activity.achievement_count > 0 && (
+                      <div className="flex items-center gap-1">
+                        <Trophy className="h-3 w-3 text-yellow-500" />
+                        <span className="font-medium">Achievements:</span>
+                        <span>{activity.achievement_count}</span>
+                      </div>
+                    )}
+                    {activity.suffer_score && (
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium">Suffer Score:</span>
+                        <span>{activity.suffer_score}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))
             )}

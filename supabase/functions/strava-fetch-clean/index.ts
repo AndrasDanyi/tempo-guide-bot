@@ -112,22 +112,35 @@ serve(async (req) => {
         strava_activity_id: activity.id,
         name: activity.name,
         activity_type: activity.type,
+        start_date: activity.start_date,
+        // Basic Metrics
         distance: activity.distance,
         moving_time: activity.moving_time,
         elapsed_time: activity.elapsed_time,
-        total_elevation_gain: activity.total_elevation_gain,
         average_speed: activity.average_speed,
         max_speed: activity.max_speed,
+        // Elevation
+        total_elevation_gain: activity.total_elevation_gain,
+        elev_high: activity.elev_high,
+        elev_low: activity.elev_low,
+        // Heart Rate
         average_heartrate: activity.average_heartrate,
         max_heartrate: activity.max_heartrate,
-        average_cadence: activity.average_cadence,
+        // Power (for cycling)
         average_watts: activity.average_watts,
+        max_watts: activity.max_watts,
         weighted_average_watts: activity.weighted_average_watts,
         kilojoules: activity.kilojoules,
+        // Cadence (for cycling)
+        average_cadence: activity.average_cadence,
+        // Location
+        start_latlng: activity.start_latlng,
+        end_latlng: activity.end_latlng,
+        map_summary_polyline: activity.map?.summary_polyline,
+        // Additional metrics
         suffer_score: activity.suffer_score,
         kudos_count: activity.kudos_count,
-        achievement_count: activity.achievement_count,
-        start_date: activity.start_date
+        achievement_count: activity.achievement_count
       }));
 
       // Upsert activities (insert or update if exists)

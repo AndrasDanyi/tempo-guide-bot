@@ -9,7 +9,7 @@
 
 // React hooks for managing component state and side effects
 import { useState, useEffect } from 'react';
-maktra// React Router for navigation
+// React Router for navigation
 import { Navigate } from 'react-router-dom';
 
 // UI Components from our design system (shadcn/ui)
@@ -87,6 +87,16 @@ const Index = () => {
   // ============================================================================
   // These hooks run when certain values change and handle automatic updates
   
+  // Handle Strava redirect on initial page load (before user auth is ready)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('strava') === 'connected') {
+      // Clean up URL immediately
+      window.history.replaceState({}, '', window.location.pathname);
+      console.log('Strava connection detected on page load');
+    }
+  }, []); // Run once on mount
+
   // Main data loading effect - runs when user authentication changes
   useEffect(() => {
     if (user) {
@@ -102,10 +112,16 @@ const Index = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('strava') === 'connected') {
-      // User just connected to Strava, clean up URL and refresh their data
+      // User just connected to Strava, clean up URL immediately
       window.history.replaceState({}, '', window.location.pathname);
+      
+      // If user is available, refresh their data
       if (user) {
         fetchUserData();
+      } else {
+        // If user is not available yet, wait for authentication to complete
+        // The main useEffect will handle fetching data once user is available
+        console.log('Strava connected, waiting for user authentication...');
       }
     }
   }, [user]);

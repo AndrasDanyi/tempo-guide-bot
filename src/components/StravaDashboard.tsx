@@ -849,26 +849,34 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                     </div>
                     
                     {/* Basic Metrics - Always Visible */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 text-blue-500" />
-                        <span className="font-medium">Distance:</span>
-                        <span>{formatDistance(activity.distance)}</span>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground">Distance</span>
+                          <span className="text-muted-foreground">{formatDistance(activity.distance)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-green-500" />
-                        <span className="font-medium">Duration:</span>
-                        <span>{formatTime(activity.moving_time)}</span>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-green-500 flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground">Duration</span>
+                          <span className="text-muted-foreground">{formatTime(activity.moving_time)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <TrendingUp className="h-3 w-3 text-orange-500" />
-                        <span className="font-medium">Pace:</span>
-                        <span>{formatPace(activity.average_speed)}</span>
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground">Pace</span>
+                          <span className="text-muted-foreground">{formatPace(activity.average_speed)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <TrendingUp className="h-3 w-3 text-purple-500" />
-                        <span className="font-medium">Max Speed:</span>
-                        <span>{formatMaxSpeed(activity.max_speed)}</span>
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-purple-500 flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground">Max Speed</span>
+                          <span className="text-muted-foreground">{formatMaxSpeed(activity.max_speed)}</span>
+                        </div>
                       </div>
                     </div>
 
@@ -898,26 +906,26 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
 
                     {/* Detailed Metrics - Expandable */}
                     {isExpanded && hasDetailedData && (
-                      <div className="space-y-4 pt-2 border-t">
+                      <div className="space-y-6 pt-4 border-t border-gray-200">
                         {/* Basic Metrics Details */}
                         <div>
-                          <h4 className="text-sm font-semibold mb-2 text-foreground">Basic Metrics</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
-                            <div className="flex justify-between">
-                              <span>Moving Time:</span>
-                              <span>{formatTime(activity.moving_time)}</span>
+                          <h4 className="text-base font-semibold mb-4 text-foreground">Basic Metrics</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                              <span className="font-medium text-foreground">Moving Time</span>
+                              <span className="text-muted-foreground">{formatTime(activity.moving_time)}</span>
                             </div>
-                            <div className="flex justify-between">
-                              <span>Elapsed Time:</span>
-                              <span>{formatTime(activity.elapsed_time)}</span>
+                            <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                              <span className="font-medium text-foreground">Elapsed Time</span>
+                              <span className="text-muted-foreground">{formatTime(activity.elapsed_time)}</span>
                             </div>
-                            <div className="flex justify-between">
-                              <span>Average Speed:</span>
-                              <span>{formatMaxSpeed(activity.average_speed)}</span>
+                            <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                              <span className="font-medium text-foreground">Average Speed</span>
+                              <span className="text-muted-foreground">{formatMaxSpeed(activity.average_speed)}</span>
                             </div>
-                            <div className="flex justify-between">
-                              <span>Max Speed:</span>
-                              <span>{formatMaxSpeed(activity.max_speed)}</span>
+                            <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                              <span className="font-medium text-foreground">Max Speed</span>
+                              <span className="text-muted-foreground">{formatMaxSpeed(activity.max_speed)}</span>
                             </div>
                           </div>
                         </div>
@@ -925,24 +933,24 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                         {/* Elevation Data */}
                         {(activity.total_elevation_gain || activity.elev_high || activity.elev_low) && (
                           <div>
-                            <h4 className="text-sm font-semibold mb-2 text-foreground">Elevation</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                            <h4 className="text-base font-semibold mb-4 text-foreground">Elevation</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                               {activity.total_elevation_gain && (
-                                <div className="flex justify-between">
-                                  <span>Total Gain:</span>
-                                  <span>{formatElevation(activity.total_elevation_gain)}</span>
+                                <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                  <span className="font-medium text-foreground">Total Gain</span>
+                                  <span className="text-muted-foreground">{formatElevation(activity.total_elevation_gain)}</span>
                                 </div>
                               )}
                               {activity.elev_high && (
-                                <div className="flex justify-between">
-                                  <span>Max Elevation:</span>
-                                  <span>{formatElevation(activity.elev_high)}</span>
+                                <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                  <span className="font-medium text-foreground">Max Elevation</span>
+                                  <span className="text-muted-foreground">{formatElevation(activity.elev_high)}</span>
                                 </div>
                               )}
                               {activity.elev_low && (
-                                <div className="flex justify-between">
-                                  <span>Min Elevation:</span>
-                                  <span>{formatElevation(activity.elev_low)}</span>
+                                <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                  <span className="font-medium text-foreground">Min Elevation</span>
+                                  <span className="text-muted-foreground">{formatElevation(activity.elev_low)}</span>
                                 </div>
                               )}
                             </div>
@@ -952,21 +960,21 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                         {/* Heart Rate Data */}
                         {(activity.average_heartrate || activity.max_heartrate) && (
                           <div>
-                            <h4 className="text-sm font-semibold mb-2 text-foreground flex items-center gap-1">
-                              <Heart className="h-3 w-3 text-red-500" />
+                            <h4 className="text-base font-semibold mb-4 text-foreground flex items-center gap-2">
+                              <Heart className="h-4 w-4 text-red-500" />
                               Heart Rate
                             </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                               {activity.average_heartrate && (
-                                <div className="flex justify-between">
-                                  <span>Average HR:</span>
-                                  <span>{Math.round(activity.average_heartrate)} bpm</span>
+                                <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                  <span className="font-medium text-foreground">Average HR</span>
+                                  <span className="text-muted-foreground">{Math.round(activity.average_heartrate)} bpm</span>
                                 </div>
                               )}
                               {activity.max_heartrate && (
-                                <div className="flex justify-between">
-                                  <span>Max HR:</span>
-                                  <span>{Math.round(activity.max_heartrate)} bpm</span>
+                                <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                  <span className="font-medium text-foreground">Max HR</span>
+                                  <span className="text-muted-foreground">{Math.round(activity.max_heartrate)} bpm</span>
                                 </div>
                               )}
                             </div>
@@ -976,24 +984,24 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                         {/* Power Data (for cycling) */}
                         {(activity.average_watts || activity.max_watts || activity.kilojoules) && (
                           <div>
-                            <h4 className="text-sm font-semibold mb-2 text-foreground">Power (Cycling)</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                            <h4 className="text-base font-semibold mb-4 text-foreground">Power (Cycling)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                               {activity.average_watts && (
-                                <div className="flex justify-between">
-                                  <span>Avg Power:</span>
-                                  <span>{formatPower(activity.average_watts)}</span>
+                                <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                  <span className="font-medium text-foreground">Avg Power</span>
+                                  <span className="text-muted-foreground">{formatPower(activity.average_watts)}</span>
                                 </div>
                               )}
                               {activity.max_watts && (
-                                <div className="flex justify-between">
-                                  <span>Max Power:</span>
-                                  <span>{formatPower(activity.max_watts)}</span>
+                                <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                  <span className="font-medium text-foreground">Max Power</span>
+                                  <span className="text-muted-foreground">{formatPower(activity.max_watts)}</span>
                                 </div>
                               )}
                               {activity.kilojoules && (
-                                <div className="flex justify-between">
-                                  <span>Energy:</span>
-                                  <span>{Math.round(activity.kilojoules)} kJ</span>
+                                <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                  <span className="font-medium text-foreground">Energy</span>
+                                  <span className="text-muted-foreground">{Math.round(activity.kilojoules)} kJ</span>
                                 </div>
                               )}
                             </div>
@@ -1003,11 +1011,11 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                         {/* Cadence Data (for cycling) */}
                         {activity.average_cadence && (
                           <div>
-                            <h4 className="text-sm font-semibold mb-2 text-foreground">Cadence (Cycling)</h4>
-                            <div className="text-sm text-muted-foreground">
-                              <div className="flex justify-between">
-                                <span>Average Cadence:</span>
-                                <span>{formatCadence(activity.average_cadence)}</span>
+                            <h4 className="text-base font-semibold mb-4 text-foreground">Cadence (Cycling)</h4>
+                            <div className="text-sm">
+                              <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                <span className="font-medium text-foreground">Average Cadence</span>
+                                <span className="text-muted-foreground">{formatCadence(activity.average_cadence)}</span>
                               </div>
                             </div>
                           </div>
@@ -1016,24 +1024,24 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                         {/* Location Data */}
                         {(activity.start_latlng || activity.end_latlng) && (
                           <div>
-                            <h4 className="text-sm font-semibold mb-2 text-foreground">Location</h4>
-                            <div className="space-y-2 text-sm text-muted-foreground">
+                            <h4 className="text-base font-semibold mb-4 text-foreground">Location</h4>
+                            <div className="space-y-3 text-sm">
                               {activity.start_latlng && (
-                                <div>
-                                  <span className="font-medium">Start:</span>
-                                  <span className="font-mono text-xs ml-2">{formatCoordinates(activity.start_latlng)}</span>
+                                <div className="py-2 px-3 bg-gray-50 rounded-lg">
+                                  <span className="font-medium text-foreground">Start Coordinates</span>
+                                  <div className="font-mono text-xs text-muted-foreground mt-1">{formatCoordinates(activity.start_latlng)}</div>
                                 </div>
                               )}
                               {activity.end_latlng && (
-                                <div>
-                                  <span className="font-medium">End:</span>
-                                  <span className="font-mono text-xs ml-2">{formatCoordinates(activity.end_latlng)}</span>
+                                <div className="py-2 px-3 bg-gray-50 rounded-lg">
+                                  <span className="font-medium text-foreground">End Coordinates</span>
+                                  <div className="font-mono text-xs text-muted-foreground mt-1">{formatCoordinates(activity.end_latlng)}</div>
                                 </div>
                               )}
                               {activity.map_summary_polyline && (
-                                <div>
-                                  <span className="font-medium">Route:</span>
-                                  <span className="text-xs ml-2">Polyline available ({activity.map_summary_polyline.length} chars)</span>
+                                <div className="py-2 px-3 bg-gray-50 rounded-lg">
+                                  <span className="font-medium text-foreground">Route</span>
+                                  <div className="text-xs text-muted-foreground mt-1">Polyline available ({activity.map_summary_polyline.length} chars)</div>
                                 </div>
                               )}
                             </div>
@@ -1043,31 +1051,33 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                         {/* Activity Splits */}
                         {getActivitySplits(activity.id).length > 0 && (
                           <div>
-                            <h4 className="text-sm font-semibold mb-2 text-foreground">Per-Kilometer Splits</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                            <h4 className="text-base font-semibold mb-4 text-foreground">Per-Kilometer Splits</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                               {getActivitySplits(activity.id).slice(0, 6).map((split) => (
-                                <div key={split.id} className="border rounded p-2">
-                                  <div className="font-medium text-foreground">Split {split.split_number}</div>
-                                  <div className="flex justify-between">
-                                    <span>Distance:</span>
-                                    <span>{formatDistance(split.distance)}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Time:</span>
-                                    <span>{formatEffortTime(split.elapsed_time)}</span>
-                                  </div>
-                                  {split.average_speed && (
-                                    <div className="flex justify-between">
-                                      <span>Pace:</span>
-                                      <span>{formatPace(split.average_speed)}</span>
+                                <div key={split.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                                  <div className="font-semibold text-foreground mb-3">Split {split.split_number}</div>
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-medium text-foreground">Distance</span>
+                                      <span className="text-muted-foreground">{formatDistance(split.distance)}</span>
                                     </div>
-                                  )}
-                                  {split.elevation_difference && (
-                                    <div className="flex justify-between">
-                                      <span>Elevation:</span>
-                                      <span>{split.elevation_difference > 0 ? '+' : ''}{Math.round(split.elevation_difference)}m</span>
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-medium text-foreground">Time</span>
+                                      <span className="text-muted-foreground">{formatEffortTime(split.elapsed_time)}</span>
                                     </div>
-                                  )}
+                                    {split.average_speed && (
+                                      <div className="flex justify-between items-center">
+                                        <span className="font-medium text-foreground">Pace</span>
+                                        <span className="text-muted-foreground">{formatPace(split.average_speed)}</span>
+                                      </div>
+                                    )}
+                                    {split.elevation_difference && (
+                                      <div className="flex justify-between items-center">
+                                        <span className="font-medium text-foreground">Elevation</span>
+                                        <span className="text-muted-foreground">{split.elevation_difference > 0 ? '+' : ''}{Math.round(split.elevation_difference)}m</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -1077,31 +1087,33 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                         {/* Activity Laps */}
                         {getActivityLaps(activity.id).length > 0 && (
                           <div>
-                            <h4 className="text-sm font-semibold mb-2 text-foreground">Laps</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                            <h4 className="text-base font-semibold mb-4 text-foreground">Laps</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                               {getActivityLaps(activity.id).slice(0, 4).map((lap) => (
-                                <div key={lap.id} className="border rounded p-2">
-                                  <div className="font-medium text-foreground">Lap {lap.lap_number}</div>
-                                  <div className="flex justify-between">
-                                    <span>Distance:</span>
-                                    <span>{formatDistance(lap.distance)}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Time:</span>
-                                    <span>{formatEffortTime(lap.elapsed_time)}</span>
-                                  </div>
-                                  {lap.average_speed && (
-                                    <div className="flex justify-between">
-                                      <span>Pace:</span>
-                                      <span>{formatPace(lap.average_speed)}</span>
+                                <div key={lap.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                                  <div className="font-semibold text-foreground mb-3">Lap {lap.lap_number}</div>
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-medium text-foreground">Distance</span>
+                                      <span className="text-muted-foreground">{formatDistance(lap.distance)}</span>
                                     </div>
-                                  )}
-                                  {lap.average_heartrate && (
-                                    <div className="flex justify-between">
-                                      <span>Avg HR:</span>
-                                      <span>{Math.round(lap.average_heartrate)} bpm</span>
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-medium text-foreground">Time</span>
+                                      <span className="text-muted-foreground">{formatEffortTime(lap.elapsed_time)}</span>
                                     </div>
-                                  )}
+                                    {lap.average_speed && (
+                                      <div className="flex justify-between items-center">
+                                        <span className="font-medium text-foreground">Pace</span>
+                                        <span className="text-muted-foreground">{formatPace(lap.average_speed)}</span>
+                                      </div>
+                                    )}
+                                    {lap.average_heartrate && (
+                                      <div className="flex justify-between items-center">
+                                        <span className="font-medium text-foreground">Avg HR</span>
+                                        <span className="text-muted-foreground">{Math.round(lap.average_heartrate)} bpm</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -1111,16 +1123,16 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                         {/* Segment Efforts */}
                         {getActivitySegmentEfforts(activity.id).length > 0 && (
                           <div>
-                            <h4 className="text-sm font-semibold mb-2 text-foreground flex items-center gap-1">
-                              <Trophy className="h-3 w-3 text-yellow-500" />
+                            <h4 className="text-base font-semibold mb-4 text-foreground flex items-center gap-2">
+                              <Trophy className="h-4 w-4 text-yellow-500" />
                               Segment Efforts
                             </h4>
-                            <div className="space-y-2 text-sm text-muted-foreground">
+                            <div className="space-y-3 text-sm">
                               {getActivitySegmentEfforts(activity.id).slice(0, 5).map((effort) => (
-                                <div key={effort.id} className="border rounded p-2">
-                                  <div className="flex justify-between items-start">
-                                    <div className="font-medium text-foreground">{effort.segment_name}</div>
-                                    <div className="flex gap-1">
+                                <div key={effort.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                                  <div className="flex justify-between items-start mb-3">
+                                    <div className="font-semibold text-foreground">{effort.segment_name}</div>
+                                    <div className="flex gap-2">
                                       {effort.pr_rank === 1 && (
                                         <Badge className="bg-yellow-100 text-yellow-800 text-xs">PR</Badge>
                                       )}
@@ -1129,14 +1141,14 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                                       )}
                                     </div>
                                   </div>
-                                  <div className="grid grid-cols-2 gap-2 mt-1">
-                                    <div className="flex justify-between">
-                                      <span>Distance:</span>
-                                      <span>{formatDistance(effort.distance)}</span>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-medium text-foreground">Distance</span>
+                                      <span className="text-muted-foreground">{formatDistance(effort.distance)}</span>
                                     </div>
-                                    <div className="flex justify-between">
-                                      <span>Time:</span>
-                                      <span>{formatEffortTime(effort.elapsed_time)}</span>
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-medium text-foreground">Time</span>
+                                      <span className="text-muted-foreground">{formatEffortTime(effort.elapsed_time)}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -1147,27 +1159,27 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
 
                         {/* Additional Metrics */}
                         <div>
-                          <h4 className="text-sm font-semibold mb-2 text-foreground">Additional</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                          <h4 className="text-base font-semibold mb-4 text-foreground">Additional</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                             {activity.kudos_count && activity.kudos_count > 0 && (
-                              <div className="flex justify-between">
-                                <span>Kudos:</span>
-                                <span>{activity.kudos_count}</span>
+                              <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                <span className="font-medium text-foreground">Kudos</span>
+                                <span className="text-muted-foreground">{activity.kudos_count}</span>
                               </div>
                             )}
                             {activity.achievement_count && activity.achievement_count > 0 && (
-                              <div className="flex justify-between items-center">
-                                <span className="flex items-center gap-1">
-                                  <Trophy className="h-3 w-3 text-yellow-500" />
-                                  Achievements:
+                              <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                <span className="flex items-center gap-2 font-medium text-foreground">
+                                  <Trophy className="h-4 w-4 text-yellow-500" />
+                                  Achievements
                                 </span>
-                                <span>{activity.achievement_count}</span>
+                                <span className="text-muted-foreground">{activity.achievement_count}</span>
                               </div>
                             )}
                             {activity.suffer_score && (
-                              <div className="flex justify-between">
-                                <span>Suffer Score:</span>
-                                <span>{activity.suffer_score}</span>
+                              <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                <span className="font-medium text-foreground">Suffer Score</span>
+                                <span className="text-muted-foreground">{activity.suffer_score}</span>
                               </div>
                             )}
                           </div>

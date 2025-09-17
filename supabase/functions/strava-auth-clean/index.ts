@@ -52,7 +52,7 @@ serve(async (req) => {
     }
 
     // Build Strava authorization URL
-    const redirectUri = `${SUPABASE_URL}/functions/v1/strava-webhook`;
+    const redirectUri = `${SUPABASE_URL}/functions/v1/strava-callback`;
     
     const authUrl = new URL('https://www.strava.com/oauth/authorize');
     authUrl.searchParams.set('client_id', STRAVA_CLIENT_ID);

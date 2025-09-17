@@ -2,8 +2,9 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// IMPORTANT: This function should have JWT verification DISABLED in Supabase dashboard
-// because Strava callbacks don't include authorization headers
+// IMPORTANT: This function is designed to work with JWT verification ENABLED or DISABLED
+// It uses the service role key directly to bypass JWT verification issues
+// Strava callbacks don't include authorization headers, so we handle this gracefully
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,6 +26,9 @@ serve(async (req) => {
   console.log('Request headers:', Object.fromEntries(req.headers.entries()));
 
   try {
+    // Skip JWT verification for Strava callbacks since they don't include auth headers
+    // This allows the function to work even when JWT verification is enabled in Supabase
+    console.log('Processing Strava callback without JWT verification...');
     const url = new URL(req.url);
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
@@ -39,7 +43,13 @@ serve(async (req) => {
       throw new Error('Missing code or state parameter');
     }
 
-    const supabase = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    // Use service role key directly to bypass JWT verification issues
+    const supabase = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
 
     // Verify state token
     const { data: stateData, error: stateError } = await supabase

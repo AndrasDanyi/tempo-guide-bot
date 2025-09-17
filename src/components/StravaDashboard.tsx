@@ -278,6 +278,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
         bestEffortsResponse = await supabase.functions.invoke('strava-fetch-best-efforts', {
           body: {}
         });
+        console.log('Best efforts fetch response:', bestEffortsResponse.data);
       } catch (error) {
         console.log('Best efforts function not available yet:', error);
         // Continue without best efforts - don't break the main functionality
@@ -338,6 +339,21 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
             setBestEfforts(bestEffortsResponse.data.bestEfforts);
           }
           toast.success(`Successfully synced ${bestEffortsCount} best efforts from Strava!`);
+        } else {
+          console.log('No best efforts returned from Strava API');
+          // Still refresh from database in case there are stored best efforts
+          const { data: dbBestEfforts, error: dbError } = await supabase
+            .from('strava_best_efforts')
+            .select('*')
+            .eq('user_id', profile.user_id)
+            .order('pr_rank', { ascending: true, nullsFirst: false })
+            .order('start_date', { ascending: false })
+            .limit(20);
+          
+          if (!dbError && dbBestEfforts) {
+            setBestEfforts(dbBestEfforts);
+            console.log('Loaded best efforts from database:', dbBestEfforts.length);
+          }
         }
       }
 

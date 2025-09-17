@@ -331,16 +331,19 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
         console.log('Strava best efforts fetch response:', bestEffortsResponse.data);
         const bestEffortsCount = bestEffortsResponse.data?.bestEffortsCount || 0;
         
-        if (bestEffortsCount > 0) {
-          // Update the best efforts state with the fetched data
-          if (bestEffortsResponse.data?.bestEfforts) {
-            console.log('Setting best efforts state with:', bestEffortsResponse.data.bestEfforts);
-            console.log('Best efforts count:', bestEffortsResponse.data.bestEfforts.length);
-            setBestEfforts(bestEffortsResponse.data.bestEfforts);
+        // Always update the best efforts state with whatever we got
+        if (bestEffortsResponse.data?.bestEfforts) {
+          console.log('Setting best efforts state with:', bestEffortsResponse.data.bestEfforts);
+          console.log('Best efforts count:', bestEffortsResponse.data.bestEfforts.length);
+          setBestEfforts(bestEffortsResponse.data.bestEfforts);
+          
+          if (bestEffortsCount > 0) {
+            toast.success(`Successfully synced ${bestEffortsCount} best efforts from Strava!`);
+          } else {
+            console.log('No best efforts returned from Strava API');
           }
-          toast.success(`Successfully synced ${bestEffortsCount} best efforts from Strava!`);
         } else {
-          console.log('No best efforts returned from Strava API');
+          console.log('No best efforts data in response, checking database...');
           // Still refresh from database in case there are stored best efforts
           const { data: dbBestEfforts, error: dbError } = await supabase
             .from('strava_best_efforts')

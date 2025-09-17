@@ -1193,36 +1193,144 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
           </TabsContent>
           
           <TabsContent value="efforts" className="space-y-3">
-            {bestEfforts.length === 0 ? (
+            {segmentEfforts.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-2">
-                  No estimated best efforts found
+                  No segment PRs found
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Estimated best efforts will appear here after analyzing your recent activities
+                  Segment personal records will appear here after you complete runs with Strava segments
                 </p>
               </div>
             ) : (
-              bestEfforts.map((effort) => (
-                <div key={effort.id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <Trophy className="h-4 w-4 text-yellow-500" />
-                      <h3 className="font-medium">{effort.name}</h3>
-                      {effort.pr_rank === 1 && (
-                        <Badge className="bg-yellow-100 text-yellow-800">PR</Badge>
-                      )}
+              <div className="space-y-4">
+                {/* Segment PRs (Personal Records) */}
+                {segmentEfforts.filter(effort => effort.pr_rank === 1).length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Trophy className="h-5 w-5 text-yellow-500" />
+                      Personal Records (PRs)
+                    </h3>
+                    <div className="space-y-3">
+                      {segmentEfforts
+                        .filter(effort => effort.pr_rank === 1)
+                        .sort((a, b) => a.distance - b.distance) // Sort by distance
+                        .map((effort) => (
+                          <div key={effort.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex items-center gap-2">
+                                <Trophy className="h-4 w-4 text-yellow-500" />
+                                <h4 className="font-semibold text-foreground">{effort.segment_name}</h4>
+                                <Badge className="bg-yellow-100 text-yellow-800">PR</Badge>
+                              </div>
+                              <Badge variant="outline" className="text-lg font-semibold">
+                                {formatEffortTime(effort.elapsed_time)}
+                              </Badge>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Distance</span>
+                                <span className="text-muted-foreground">{formatDistance(effort.distance)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Date</span>
+                                <span className="text-muted-foreground">{new Date(effort.start_date).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                     </div>
-                    <Badge variant="outline">
-                      {formatEffortTime(effort.elapsed_time)}
-                    </Badge>
                   </div>
-                  
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    {formatDistance(effort.distance)} • {new Date(effort.start_date).toLocaleDateString()}
+                )}
+
+                {/* KOM Rankings */}
+                {segmentEfforts.filter(effort => effort.kom_rank && effort.kom_rank <= 10).length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Trophy className="h-5 w-5 text-orange-500" />
+                      King of the Mountain (KOM) Rankings
+                    </h3>
+                    <div className="space-y-3">
+                      {segmentEfforts
+                        .filter(effort => effort.kom_rank && effort.kom_rank <= 10)
+                        .sort((a, b) => (a.kom_rank || 0) - (b.kom_rank || 0)) // Sort by KOM rank
+                        .map((effort) => (
+                          <div key={effort.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex items-center gap-2">
+                                <Trophy className="h-4 w-4 text-orange-500" />
+                                <h4 className="font-semibold text-foreground">{effort.segment_name}</h4>
+                                <Badge className="bg-orange-100 text-orange-800">KOM #{effort.kom_rank}</Badge>
+                              </div>
+                              <Badge variant="outline" className="text-lg font-semibold">
+                                {formatEffortTime(effort.elapsed_time)}
+                              </Badge>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Distance</span>
+                                <span className="text-muted-foreground">{formatDistance(effort.distance)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Date</span>
+                                <span className="text-muted-foreground">{new Date(effort.start_date).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
                   </div>
-                </div>
-              ))
+                )}
+
+                {/* Recent Segment Efforts */}
+                {segmentEfforts.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Activity className="h-5 w-5 text-blue-500" />
+                      Recent Segment Efforts
+                    </h3>
+                    <div className="space-y-3">
+                      {segmentEfforts
+                        .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()) // Sort by date, newest first
+                        .slice(0, 10) // Show only 10 most recent
+                        .map((effort) => (
+                          <div key={effort.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex items-center gap-2">
+                                <Activity className="h-4 w-4 text-blue-500" />
+                                <h4 className="font-semibold text-foreground">{effort.segment_name}</h4>
+                                <div className="flex gap-1">
+                                  {effort.pr_rank === 1 && (
+                                    <Badge className="bg-yellow-100 text-yellow-800 text-xs">PR</Badge>
+                                  )}
+                                  {effort.kom_rank && effort.kom_rank <= 10 && (
+                                    <Badge className="bg-orange-100 text-orange-800 text-xs">KOM #{effort.kom_rank}</Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <Badge variant="outline">
+                                {formatEffortTime(effort.elapsed_time)}
+                              </Badge>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Distance</span>
+                                <span className="text-muted-foreground">{formatDistance(effort.distance)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Date</span>
+                                <span className="text-muted-foreground">{new Date(effort.start_date).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </TabsContent>
         </Tabs>

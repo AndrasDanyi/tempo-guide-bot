@@ -16,6 +16,11 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Log the request for debugging
+  console.log('Strava callback received:', req.url);
+  console.log('Request method:', req.method);
+  console.log('Request headers:', Object.fromEntries(req.headers.entries()));
+
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get('code');

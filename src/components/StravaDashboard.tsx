@@ -160,6 +160,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
         console.error('Error fetching activities:', activitiesResponse.error);
       } else {
         const activitiesData = activitiesResponse.data || [];
+        console.log('Activities fetched from database:', activitiesData.length, activitiesData);
         setActivities(activitiesData);
         
         // Smart auto-sync: If no activities found in database, try to fetch from Strava API
@@ -313,6 +314,9 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
             console.log('Activities state should now be updated');
           }
           toast.success(`Successfully synced ${activityCount} activities from Strava!`);
+        } else {
+          console.log('No activities returned from Strava API');
+          toast.warning('No activities found on Strava. Make sure you have running activities.');
         }
       }
 

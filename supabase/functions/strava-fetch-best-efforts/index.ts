@@ -172,6 +172,7 @@ serve(async (req) => {
       for (const target of targetDistances) {
         if (bestTimes[target.name] && bestActivities[target.name]) {
           allBestEfforts.push({
+            id: `calculated-${target.name.toLowerCase().replace(' ', '-')}-${Date.now()}`,
             strava_effort_id: `calculated-${target.name.toLowerCase().replace(' ', '-')}-${Date.now()}`,
             activity_id: bestActivities[target.name].id,
             name: target.name,

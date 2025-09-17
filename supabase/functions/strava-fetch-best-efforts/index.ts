@@ -122,30 +122,36 @@ serve(async (req) => {
 
       // Calculate best efforts for common distances
       const targetDistances = [
-        { name: '1K', distance: 1000 },
-        { name: '5K', distance: 5000 },
-        { name: '10K', distance: 10000 },
-        { name: 'Half Marathon', distance: 21097.5 },
-        { name: 'Marathon', distance: 42195 }
+        { name: '1K', distance: 1000, tolerance: 0.15 }, // ±15% for 1K (850m-1150m)
+        { name: '5K', distance: 5000, tolerance: 0.10 }, // ±10% for 5K (4500m-5500m)
+        { name: '10K', distance: 10000, tolerance: 0.08 }, // ±8% for 10K (9200m-10800m)
+        { name: 'Half Marathon', distance: 21097.5, tolerance: 0.05 }, // ±5% for HM
+        { name: 'Marathon', distance: 42195, tolerance: 0.05 } // ±5% for Marathon
       ];
 
       for (const target of targetDistances) {
         let bestTime = null;
         let bestActivity = null;
 
+        console.log(`Looking for ${target.name} efforts (${target.distance}m ±${(target.tolerance * 100)}%)`);
+
         // Find the best time for this distance
         for (const activity of runningActivities) {
           const activityDistance = activity.distance; // in meters
           const activityTime = activity.moving_time; // in seconds
 
-          // Check if this activity is close to our target distance (±5% tolerance)
-          const tolerance = target.distance * 0.05;
-          if (activityDistance >= (target.distance - tolerance) && 
-              activityDistance <= (target.distance + tolerance)) {
+          // Check if this activity is close to our target distance
+          const tolerance = target.distance * target.tolerance;
+          const minDistance = target.distance - tolerance;
+          const maxDistance = target.distance + tolerance;
+          
+          if (activityDistance >= minDistance && activityDistance <= maxDistance) {
+            console.log(`Found ${target.name} candidate: ${activity.name} - ${activityDistance}m in ${Math.floor(activityTime / 60)}:${(activityTime % 60).toString().padStart(2, '0')}`);
             
             if (!bestTime || activityTime < bestTime) {
               bestTime = activityTime;
               bestActivity = activity;
+              console.log(`New best ${target.name}: ${Math.floor(activityTime / 60)}:${(activityTime % 60).toString().padStart(2, '0')}`);
             }
           }
         }

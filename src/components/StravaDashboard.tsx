@@ -295,8 +295,6 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
         if (activityCount > 0) {
           // Success! Show how many activities were synced
           toast.success(`Successfully synced ${activityCount} activities from Strava!`);
-          // Refresh the displayed data to show the new activities
-          await fetchStravaData();
           // Notify parent component that new Strava data is available
           if (onStravaDataSynced) {
             onStravaDataSynced();

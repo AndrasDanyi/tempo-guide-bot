@@ -391,12 +391,19 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
     }
   };
 
-  // Convert time to MM:SS format for best efforts and segments
+  // Convert time to h:mm:ss format for best efforts and segments
   const formatEffortTime = (seconds: number) => {
     if (!seconds || seconds === 0) return 'N/A';
-    const minutes = Math.floor(seconds / 60);
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+      return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    }
   };
 
   // Convert date string to readable format (e.g., "Dec 20, 2025")

@@ -138,13 +138,14 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
           .order('start_date', { ascending: false })
           .limit(10),
         
-        // Fetch personal records and best efforts (ranked by PR status)
+        // Fetch personal records and best efforts (all time, ranked by PR status)
         supabase
           .from('strava_best_efforts')
           .select('*')
           .eq('user_id', profile.user_id)
           .order('pr_rank', { ascending: true, nullsFirst: false })
-          .limit(10)
+          .order('start_date', { ascending: false })
+          .limit(20)
       ]);
 
       // Process the statistics data

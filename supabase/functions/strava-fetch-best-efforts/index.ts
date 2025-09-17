@@ -90,8 +90,8 @@ serve(async (req) => {
       }
     }
 
-    // Fetch activities and calculate best efforts for specific distances
-    console.log('Fetching activities to calculate best efforts for specific distances...');
+    // Fetch activities and estimate best efforts for specific distances
+    console.log('Fetching activities to estimate best efforts for specific distances...');
     
     const allBestEfforts = [];
     
@@ -140,7 +140,7 @@ serve(async (req) => {
         bestActivities[target.name] = null;
       }
 
-      console.log(`Analyzing ${runningActivities.length} activities for best efforts...`);
+      console.log(`Analyzing ${runningActivities.length} activities to estimate best efforts...`);
 
       // Analyze each activity for best segments
       for (const activity of runningActivities) {
@@ -155,34 +155,40 @@ serve(async (req) => {
           // Only consider activities that are at least as long as the target distance
           if (activityDistance >= target.distance) {
             // Calculate the best possible segment time for this distance
-            // We'll use a more aggressive estimate that assumes the runner had faster segments
+            // Since we don't have GPS data, we'll estimate based on realistic pace variations
             
-            // For shorter distances, assume they could run 5-15% faster than average pace
-            // For longer distances, assume they could run 2-8% faster than average pace
+            // For shorter distances, runners typically have much faster segments
+            // For longer distances, pace variation is smaller
             let paceMultiplier = 1.0;
             if (target.distance <= 1000) {
-              paceMultiplier = 0.85; // Assume 15% faster for 1K segments
+              // 1K segments can be 20-30% faster than average pace
+              paceMultiplier = 0.75; // Assume 25% faster for 1K segments
             } else if (target.distance <= 5000) {
-              paceMultiplier = 0.90; // Assume 10% faster for 5K segments
+              // 5K segments can be 15-20% faster than average pace
+              paceMultiplier = 0.82; // Assume 18% faster for 5K segments
             } else if (target.distance <= 10000) {
-              paceMultiplier = 0.92; // Assume 8% faster for 10K segments
+              // 10K segments can be 10-15% faster than average pace
+              paceMultiplier = 0.88; // Assume 12% faster for 10K segments
             } else if (target.distance <= 21097.5) {
-              paceMultiplier = 0.95; // Assume 5% faster for Half Marathon
+              // Half Marathon segments can be 5-10% faster than average pace
+              paceMultiplier = 0.92; // Assume 8% faster for Half Marathon
             } else if (target.distance <= 42195) {
-              paceMultiplier = 0.97; // Assume 3% faster for Marathon
+              // Marathon segments can be 3-7% faster than average pace
+              paceMultiplier = 0.95; // Assume 5% faster for Marathon
             } else {
-              paceMultiplier = 0.98; // Assume 2% faster for 50K
+              // 50K segments can be 2-5% faster than average pace
+              paceMultiplier = 0.97; // Assume 3% faster for 50K
             }
             
             const bestSegmentTime = Math.round(activityPace * target.distance * paceMultiplier);
             
-            console.log(`  ${target.name}: Best segment ${Math.floor(bestSegmentTime/60)}:${(bestSegmentTime%60).toString().padStart(2,'0')} (${((1-paceMultiplier)*100).toFixed(0)}% faster than avg pace)`);
+            console.log(`  ${target.name}: Estimated best ${Math.floor(bestSegmentTime/60)}:${(bestSegmentTime%60).toString().padStart(2,'0')} (${((1-paceMultiplier)*100).toFixed(0)}% faster than avg pace)`);
             
             // Update best time if this is better
             if (!bestTimes[target.name] || bestSegmentTime < bestTimes[target.name]) {
               bestTimes[target.name] = bestSegmentTime;
               bestActivities[target.name] = activity;
-              console.log(`  New best ${target.name}: ${Math.floor(bestSegmentTime/60)}:${(bestSegmentTime%60).toString().padStart(2,'0')} from ${activity.name}`);
+              console.log(`  New estimated best ${target.name}: ${Math.floor(bestSegmentTime/60)}:${(bestSegmentTime%60).toString().padStart(2,'0')} from ${activity.name}`);
             }
           }
         }
@@ -203,7 +209,7 @@ serve(async (req) => {
             achievement_rank: null,
             pr_rank: 1
           });
-          console.log(`Final best ${target.name}: ${Math.floor(bestTimes[target.name]/60)}:${(bestTimes[target.name]%60).toString().padStart(2,'0')} from activity ${bestActivities[target.name].name}`);
+          console.log(`Final estimated best ${target.name}: ${Math.floor(bestTimes[target.name]/60)}:${(bestTimes[target.name]%60).toString().padStart(2,'0')} from activity ${bestActivities[target.name].name}`);
         } else {
           console.log(`No ${target.name} effort found in recent activities`);
         }
@@ -213,7 +219,7 @@ serve(async (req) => {
       console.error('Error fetching activities for best efforts calculation:', error);
     }
 
-    console.log(`Total calculated best efforts: ${allBestEfforts.length}`);
+    console.log(`Total estimated best efforts: ${allBestEfforts.length}`);
 
     // Store best efforts in database
     if (allBestEfforts.length > 0) {

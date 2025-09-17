@@ -541,79 +541,11 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
+        <Tabs defaultValue="activities" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="activities">Recent Runs</TabsTrigger>
-            <TabsTrigger value="efforts">Best Efforts</TabsTrigger>
+            <TabsTrigger value="efforts">Estimated Best Efforts</TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {recentStats && (
-                <>
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {recentStats.count}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Recent Runs
-                    </div>
-                  </div>
-                  
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {formatDistance(recentStats.distance)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Total Distance
-                    </div>
-                  </div>
-                  
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      {formatTime(recentStats.moving_time)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Moving Time
-                    </div>
-                  </div>
-                  
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {recentStats.elevation_gain ? `${Math.round(recentStats.elevation_gain)}m` : 'N/A'}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Elevation
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {ytdStats && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Year to Date
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div className="text-center p-3 bg-muted/50 rounded-lg">
-                    <div className="text-xl font-bold">{ytdStats.count}</div>
-                    <div className="text-sm text-muted-foreground">Runs</div>
-                  </div>
-                  <div className="text-center p-3 bg-muted/50 rounded-lg">
-                    <div className="text-xl font-bold">{formatDistance(ytdStats.distance)}</div>
-                    <div className="text-sm text-muted-foreground">Distance</div>
-                  </div>
-                  <div className="text-center p-3 bg-muted/50 rounded-lg">
-                    <div className="text-xl font-bold">{formatTime(ytdStats.moving_time)}</div>
-                    <div className="text-sm text-muted-foreground">Time</div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </TabsContent>
           
           <TabsContent value="activities" className="space-y-3">
             {console.log('Current activities state:', activities, 'Length:', activities.length)}
@@ -689,10 +621,10 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
             {bestEfforts.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-2">
-                  No personal records found
+                  No estimated best efforts found
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Best efforts will appear here after you complete runs with achievements on Strava
+                  Estimated best efforts will appear here after analyzing your recent activities
                 </p>
               </div>
             ) : (

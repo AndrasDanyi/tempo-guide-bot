@@ -130,12 +130,11 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
           .select('*')
           .eq('user_id', profile.user_id),
         
-        // Fetch recent running activities (last 6 months, most recent first, limit 10)
+        // Fetch recent running activities (all activities, most recent first, limit 10)
         supabase
           .from('strava_activities')
           .select('*')
           .eq('user_id', profile.user_id)
-          .gte('start_date', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString()) // 6 months filter
           .order('start_date', { ascending: false })
           .limit(10),
         
@@ -157,10 +156,12 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
 
       // Process the activities data
       if (activitiesResponse.error) {
-        console.error('Error fetching activities:', activitiesResponse.error);
+        console.error('Error fetching activities from database:', activitiesResponse.error);
+        console.error('Full error details:', JSON.stringify(activitiesResponse.error, null, 2));
       } else {
         const activitiesData = activitiesResponse.data || [];
         console.log('Activities fetched from database:', activitiesData.length, activitiesData);
+        console.log('User ID used in query:', profile.user_id);
         setActivities(activitiesData);
         
         // Smart auto-sync: If no activities found in database, try to fetch from Strava API

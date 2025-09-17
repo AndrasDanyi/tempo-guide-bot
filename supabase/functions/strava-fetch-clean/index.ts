@@ -103,44 +103,52 @@ serve(async (req) => {
 
     const activities = await activitiesResponse.json();
 
-    // Store activities in database (commented out until schema is fixed)
-    // if (activities && activities.length > 0) {
-    //   const activitiesToInsert = activities.map((activity: any) => ({
-    //     user_id: user.id,
-    //     activity_id: activity.id,
-    //     name: activity.name,
-    //     distance: activity.distance,
-    //     moving_time: activity.moving_time,
-    //     elapsed_time: activity.elapsed_time,
-    //     total_elevation_gain: activity.total_elevation_gain,
-    //     type: activity.type,
-    //     start_date: activity.start_date,
-    //     average_speed: activity.average_speed,
-    //     max_speed: activity.max_speed,
-    //     average_heartrate: activity.average_heartrate,
-    //     max_heartrate: activity.max_heartrate,
-    //     average_cadence: activity.average_cadence,
-    //     calories: activity.calories,
-    //     description: activity.description
-    //   }));
+    // Store activities in database
+    if (activities && activities.length > 0) {
+      console.log('Storing activities in database:', activities.length);
+      
+      const activitiesToInsert = activities.map((activity: any) => ({
+        user_id: user.id,
+        strava_activity_id: activity.id,
+        name: activity.name,
+        activity_type: activity.type,
+        distance: activity.distance,
+        moving_time: activity.moving_time,
+        elapsed_time: activity.elapsed_time,
+        total_elevation_gain: activity.total_elevation_gain,
+        average_speed: activity.average_speed,
+        max_speed: activity.max_speed,
+        average_heartrate: activity.average_heartrate,
+        max_heartrate: activity.max_heartrate,
+        average_cadence: activity.average_cadence,
+        average_watts: activity.average_watts,
+        weighted_average_watts: activity.weighted_average_watts,
+        kilojoules: activity.kilojoules,
+        suffer_score: activity.suffer_score,
+        kudos_count: activity.kudos_count,
+        achievement_count: activity.achievement_count,
+        start_date: activity.start_date
+      }));
 
-    //   // Upsert activities (insert or update if exists)
-    //   const { error: insertError } = await supabase
-    //     .from('strava_activities')
-    //     .upsert(activitiesToInsert, { 
-    //       onConflict: 'user_id,activity_id',
-    //       ignoreDuplicates: false 
-    //     });
+      // Upsert activities (insert or update if exists)
+      const { error: insertError } = await supabase
+        .from('strava_activities')
+        .upsert(activitiesToInsert, { 
+          onConflict: 'strava_activity_id',
+          ignoreDuplicates: true 
+        });
 
-    //   if (insertError) {
-    //     console.error('Error storing activities:', insertError);
-    //   }
-    // }
+      if (insertError) {
+        console.error('Error storing activities:', insertError);
+      } else {
+        console.log('Successfully stored activities in database');
+      }
+    }
 
     return new Response(JSON.stringify({ 
       success: true,
       activities: activities,
-      count: activities ? activities.length : 0
+      activitiesCount: activities ? activities.length : 0
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

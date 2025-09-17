@@ -122,54 +122,67 @@ serve(async (req) => {
 
       // Calculate best efforts for common distances
       const targetDistances = [
-        { name: '1K', distance: 1000, tolerance: 0.15 }, // ±15% for 1K (850m-1150m)
-        { name: '5K', distance: 5000, tolerance: 0.10 }, // ±10% for 5K (4500m-5500m)
-        { name: '10K', distance: 10000, tolerance: 0.08 }, // ±8% for 10K (9200m-10800m)
-        { name: 'Half Marathon', distance: 21097.5, tolerance: 0.05 }, // ±5% for HM
-        { name: 'Marathon', distance: 42195, tolerance: 0.05 } // ±5% for Marathon
+        { name: '1K', distance: 1000 },
+        { name: '5K', distance: 5000 },
+        { name: '10K', distance: 10000 },
+        { name: 'Half Marathon', distance: 21097.5 },
+        { name: 'Marathon', distance: 42195 }
       ];
 
+      // Initialize best times for each distance
+      const bestTimes = {};
+      const bestActivities = {};
+      
       for (const target of targetDistances) {
-        let bestTime = null;
-        let bestActivity = null;
+        bestTimes[target.name] = null;
+        bestActivities[target.name] = null;
+      }
 
-        console.log(`Looking for ${target.name} efforts (${target.distance}m ±${(target.tolerance * 100)}%)`);
+      console.log(`Analyzing ${runningActivities.length} running activities for best efforts...`);
 
-        // Find the best time for this distance
-        for (const activity of runningActivities) {
-          const activityDistance = activity.distance; // in meters
-          const activityTime = activity.moving_time; // in seconds
+      // Analyze each activity for best segments
+      for (const activity of runningActivities) {
+        const activityDistance = activity.distance; // in meters
+        const activityTime = activity.moving_time; // in seconds
+        const activityPace = activityTime / activityDistance; // seconds per meter
 
-          // Check if this activity is close to our target distance
-          const tolerance = target.distance * target.tolerance;
-          const minDistance = target.distance - tolerance;
-          const maxDistance = target.distance + tolerance;
-          
-          if (activityDistance >= minDistance && activityDistance <= maxDistance) {
-            console.log(`Found ${target.name} candidate: ${activity.name} - ${activityDistance}m in ${Math.floor(activityTime / 60)}:${(activityTime % 60).toString().padStart(2, '0')}`);
+        console.log(`Analyzing activity: ${activity.name} - ${activityDistance}m in ${Math.floor(activityTime / 60)}:${(activityTime % 60).toString().padStart(2, '0')}`);
+
+        // For each target distance, check if this activity can provide a better time
+        for (const target of targetDistances) {
+          // Only consider activities that are at least as long as the target distance
+          if (activityDistance >= target.distance) {
+            // Calculate the best possible time for this distance based on the activity's pace
+            // We'll use the activity's overall pace as a conservative estimate
+            const estimatedTime = Math.round(activityPace * target.distance);
             
-            if (!bestTime || activityTime < bestTime) {
-              bestTime = activityTime;
-              bestActivity = activity;
-              console.log(`New best ${target.name}: ${Math.floor(activityTime / 60)}:${(activityTime % 60).toString().padStart(2, '0')}`);
+            console.log(`  ${target.name}: Estimated ${Math.floor(estimatedTime / 60)}:${(estimatedTime % 60).toString().padStart(2, '0')} (pace: ${(activityPace * 1000).toFixed(2)}s/1000m)`);
+            
+            // Update best time if this is better
+            if (!bestTimes[target.name] || estimatedTime < bestTimes[target.name]) {
+              bestTimes[target.name] = estimatedTime;
+              bestActivities[target.name] = activity;
+              console.log(`  New best ${target.name}: ${Math.floor(estimatedTime / 60)}:${(estimatedTime % 60).toString().padStart(2, '0')} from ${activity.name}`);
             }
           }
         }
+      }
 
-        // Add the best effort if found
-        if (bestTime && bestActivity) {
+      // Add the best efforts to the results
+      for (const target of targetDistances) {
+        if (bestTimes[target.name] && bestActivities[target.name]) {
           allBestEfforts.push({
             strava_effort_id: `calculated-${target.name.toLowerCase().replace(' ', '-')}-${Date.now()}`,
-            activity_id: bestActivity.id,
+            activity_id: bestActivities[target.name].id,
             name: target.name,
             distance: target.distance,
-            elapsed_time: bestTime,
-            moving_time: bestTime,
-            start_date: bestActivity.start_date,
+            elapsed_time: bestTimes[target.name],
+            moving_time: bestTimes[target.name],
+            start_date: bestActivities[target.name].start_date,
             achievement_rank: null,
             pr_rank: 1
           });
-          console.log(`Best ${target.name}: ${Math.floor(bestTime / 60)}:${(bestTime % 60).toString().padStart(2, '0')} from activity ${bestActivity.name}`);
+          console.log(`Final best ${target.name}: ${Math.floor(bestTimes[target.name] / 60)}:${(bestTimes[target.name] % 60).toString().padStart(2, '0')} from activity ${bestActivities[target.name].name}`);
         } else {
           console.log(`No ${target.name} effort found in recent activities`);
         }

@@ -154,17 +154,35 @@ serve(async (req) => {
         for (const target of targetDistances) {
           // Only consider activities that are at least as long as the target distance
           if (activityDistance >= target.distance) {
-            // Calculate the best possible time for this distance based on the activity's pace
-            // This assumes the runner maintained their average pace for the entire distance
-            const estimatedTime = Math.round(activityPace * target.distance);
+            // Calculate the best possible segment time for this distance
+            // We'll use a more aggressive estimate that assumes the runner had faster segments
             
-            console.log(`  ${target.name}: Estimated ${Math.floor(estimatedTime/60)}:${(estimatedTime%60).toString().padStart(2,'0')} (pace: ${(activityPace*1000).toFixed(2)}s/1000m)`);
+            // For shorter distances, assume they could run 5-15% faster than average pace
+            // For longer distances, assume they could run 2-8% faster than average pace
+            let paceMultiplier = 1.0;
+            if (target.distance <= 1000) {
+              paceMultiplier = 0.85; // Assume 15% faster for 1K segments
+            } else if (target.distance <= 5000) {
+              paceMultiplier = 0.90; // Assume 10% faster for 5K segments
+            } else if (target.distance <= 10000) {
+              paceMultiplier = 0.92; // Assume 8% faster for 10K segments
+            } else if (target.distance <= 21097.5) {
+              paceMultiplier = 0.95; // Assume 5% faster for Half Marathon
+            } else if (target.distance <= 42195) {
+              paceMultiplier = 0.97; // Assume 3% faster for Marathon
+            } else {
+              paceMultiplier = 0.98; // Assume 2% faster for 50K
+            }
+            
+            const bestSegmentTime = Math.round(activityPace * target.distance * paceMultiplier);
+            
+            console.log(`  ${target.name}: Best segment ${Math.floor(bestSegmentTime/60)}:${(bestSegmentTime%60).toString().padStart(2,'0')} (${((1-paceMultiplier)*100).toFixed(0)}% faster than avg pace)`);
             
             // Update best time if this is better
-            if (!bestTimes[target.name] || estimatedTime < bestTimes[target.name]) {
-              bestTimes[target.name] = estimatedTime;
+            if (!bestTimes[target.name] || bestSegmentTime < bestTimes[target.name]) {
+              bestTimes[target.name] = bestSegmentTime;
               bestActivities[target.name] = activity;
-              console.log(`  New best ${target.name}: ${Math.floor(estimatedTime/60)}:${(estimatedTime%60).toString().padStart(2,'0')} from ${activity.name}`);
+              console.log(`  New best ${target.name}: ${Math.floor(bestSegmentTime/60)}:${(bestSegmentTime%60).toString().padStart(2,'0')} from ${activity.name}`);
             }
           }
         }

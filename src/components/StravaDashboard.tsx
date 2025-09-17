@@ -1292,9 +1292,24 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                 <p className="text-muted-foreground mb-2">
                   No athlete stats found
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground mb-4">
                   Athlete statistics will appear here after syncing your Strava data
                 </p>
+                
+                {/* Database setup instructions */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-left">
+                  <h4 className="font-semibold text-blue-800 mb-2">Database Setup Required</h4>
+                  <p className="text-sm text-blue-700 mb-2">
+                    The athlete stats table may not exist yet. To fix this:
+                  </p>
+                  <ol className="text-sm text-blue-700 list-decimal list-inside space-y-1">
+                    <li>Go to your Supabase dashboard</li>
+                    <li>Open the SQL Editor</li>
+                    <li>Run the SQL script from <code className="bg-blue-100 px-1 rounded">create-athlete-stats-table.sql</code></li>
+                    <li>Then click the sync button below</li>
+                  </ol>
+                </div>
+
                 <div className="mt-4">
                   <Button 
                     onClick={handleManualRefresh}

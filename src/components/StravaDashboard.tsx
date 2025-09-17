@@ -108,6 +108,83 @@ interface StravaBestEffort {
   achievement_rank?: number; // Achievement ranking
 }
 
+// Structure of activity splits (per-kilometer/mile splits)
+interface StravaActivitySplit {
+  id: string;                    // Unique split ID
+  activity_id: string;           // Parent activity ID
+  split_number: number;          // Split number (1, 2, 3, etc.)
+  distance: number;              // Distance in meters
+  elapsed_time: number;          // Time in seconds
+  moving_time?: number;          // Moving time in seconds
+  elevation_difference?: number; // Elevation change in meters
+  average_speed?: number;        // Average speed in m/s
+  average_grade?: number;        // Average grade percentage
+}
+
+// Structure of activity laps
+interface StravaActivityLap {
+  id: string;                    // Unique lap ID
+  activity_id: string;           // Parent activity ID
+  lap_number: number;            // Lap number
+  distance: number;              // Distance in meters
+  elapsed_time: number;          // Time in seconds
+  moving_time?: number;          // Moving time in seconds
+  average_speed?: number;        // Average speed in m/s
+  max_speed?: number;            // Max speed in m/s
+  average_heartrate?: number;    // Average HR in bpm
+  max_heartrate?: number;        // Max HR in bpm
+  average_cadence?: number;      // Average cadence in rpm
+  average_watts?: number;        // Average power in watts
+}
+
+// Structure of segment efforts
+interface StravaSegmentEffort {
+  id: string;                    // Unique effort ID
+  activity_id: string;           // Parent activity ID
+  strava_segment_id: number;     // Strava segment ID
+  segment_name: string;          // Segment name
+  distance: number;              // Distance in meters
+  elapsed_time: number;          // Time in seconds
+  moving_time?: number;          // Moving time in seconds
+  start_date: string;            // When this effort was achieved
+  pr_rank?: number;              // Personal record ranking (1 = PR)
+  achievement_rank?: number;     // Achievement ranking
+  kom_rank?: number;             // King of the Mountain ranking
+  average_watts?: number;        // Average power in watts
+  average_heartrate?: number;    // Average HR in bpm
+  max_heartrate?: number;        // Max HR in bpm
+}
+
+// Structure of gear information
+interface StravaGear {
+  id: string;                    // Unique gear ID
+  strava_gear_id: string;        // Strava gear ID
+  name: string;                  // Gear name
+  gear_type: string;             // 'shoes', 'bike', 'other'
+  brand_name?: string;           // Brand name
+  model_name?: string;           // Model name
+  frame_type?: string;           // Frame type (for bikes)
+  description?: string;          // Description
+  distance: number;              // Total distance in meters
+}
+
+// Structure of athlete comprehensive stats
+interface StravaAthleteStats {
+  id: string;                    // Unique stats ID
+  period_type: string;           // 'recent', 'ytd', 'all'
+  biggest_ride_distance?: number; // Biggest ride distance in meters
+  biggest_climb_elevation_gain?: number; // Biggest climb in meters
+  recent_ride_totals?: any;      // Recent ride statistics
+  recent_run_totals?: any;       // Recent run statistics
+  recent_swim_totals?: any;      // Recent swim statistics
+  ytd_ride_totals?: any;         // Year-to-date ride statistics
+  ytd_run_totals?: any;          // Year-to-date run statistics
+  ytd_swim_totals?: any;         // Year-to-date swim statistics
+  all_ride_totals?: any;         // All-time ride statistics
+  all_run_totals?: any;          // All-time run statistics
+  all_swim_totals?: any;         // All-time swim statistics
+}
+
 // ============================================================================
 // MAIN COMPONENT FUNCTION
 // ============================================================================
@@ -121,6 +198,11 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
   const [stats, setStats] = useState<StravaStats[]>([]);           // Training statistics (recent, YTD, all-time)
   const [activities, setActivities] = useState<StravaActivity[]>([]); // Recent running activities
   const [bestEfforts, setBestEfforts] = useState<StravaBestEffort[]>([]); // Personal records and achievements
+  const [activitySplits, setActivitySplits] = useState<StravaActivitySplit[]>([]); // Activity splits data
+  const [activityLaps, setActivityLaps] = useState<StravaActivityLap[]>([]); // Activity laps data
+  const [segmentEfforts, setSegmentEfforts] = useState<StravaSegmentEffort[]>([]); // Segment efforts data
+  const [gear, setGear] = useState<StravaGear[]>([]); // Gear information
+  const [athleteStats, setAthleteStats] = useState<StravaAthleteStats[]>([]); // Comprehensive athlete stats
   const [loading, setLoading] = useState(true);                   // Loading state for initial data fetch
   const [refreshing, setRefreshing] = useState(false);            // Loading state for manual sync
   const [isConnecting, setIsConnecting] = useState(false);        // Loading state for Strava connection
@@ -147,8 +229,17 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
     
     try {
       // Fetch all Strava data in parallel for better performance
-      // We use Promise.all to fetch all three types of data simultaneously
-      const [statsResponse, activitiesResponse, bestEffortsResponse] = await Promise.all([
+      // We use Promise.all to fetch all types of data simultaneously
+      const [
+        statsResponse, 
+        activitiesResponse, 
+        bestEffortsResponse,
+        splitsResponse,
+        lapsResponse,
+        segmentEffortsResponse,
+        gearResponse,
+        athleteStatsResponse
+      ] = await Promise.all([
         // Fetch training statistics (recent, year-to-date, all-time totals)
         supabase
           .from('strava_stats')
@@ -170,7 +261,44 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
           .eq('user_id', profile.user_id)
           .order('pr_rank', { ascending: true, nullsFirst: false })
           .order('start_date', { ascending: false })
-          .limit(20)
+          .limit(20),
+
+        // Fetch activity splits
+        supabase
+          .from('strava_activity_splits')
+          .select('*')
+          .eq('user_id', profile.user_id)
+          .order('strava_activity_id', { ascending: false })
+          .order('split_number', { ascending: true }),
+
+        // Fetch activity laps
+        supabase
+          .from('strava_activity_laps')
+          .select('*')
+          .eq('user_id', profile.user_id)
+          .order('strava_activity_id', { ascending: false })
+          .order('lap_number', { ascending: true }),
+
+        // Fetch segment efforts
+        supabase
+          .from('strava_segment_efforts')
+          .select('*')
+          .eq('user_id', profile.user_id)
+          .order('start_date', { ascending: false })
+          .limit(50),
+
+        // Fetch gear information
+        supabase
+          .from('strava_gear')
+          .select('*')
+          .eq('user_id', profile.user_id)
+          .order('distance', { ascending: false }),
+
+        // Fetch comprehensive athlete stats
+        supabase
+          .from('strava_athlete_stats')
+          .select('*')
+          .eq('user_id', profile.user_id)
       ]);
 
       // Process the statistics data
@@ -208,6 +336,41 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
         console.error('Error fetching best efforts:', bestEffortsResponse.error);
       } else {
         setBestEfforts(bestEffortsResponse.data || []);
+      }
+
+      // Process the activity splits data
+      if (splitsResponse.error) {
+        console.error('Error fetching activity splits:', splitsResponse.error);
+      } else {
+        setActivitySplits(splitsResponse.data || []);
+      }
+
+      // Process the activity laps data
+      if (lapsResponse.error) {
+        console.error('Error fetching activity laps:', lapsResponse.error);
+      } else {
+        setActivityLaps(lapsResponse.data || []);
+      }
+
+      // Process the segment efforts data
+      if (segmentEffortsResponse.error) {
+        console.error('Error fetching segment efforts:', segmentEffortsResponse.error);
+      } else {
+        setSegmentEfforts(segmentEffortsResponse.data || []);
+      }
+
+      // Process the gear data
+      if (gearResponse.error) {
+        console.error('Error fetching gear:', gearResponse.error);
+      } else {
+        setGear(gearResponse.data || []);
+      }
+
+      // Process the athlete stats data
+      if (athleteStatsResponse.error) {
+        console.error('Error fetching athlete stats:', athleteStatsResponse.error);
+      } else {
+        setAthleteStats(athleteStatsResponse.data || []);
       }
 
     } catch (error) {
@@ -292,8 +455,8 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
       console.log('Profile strava_connected:', profile?.strava_connected);
       console.log('Profile strava_athlete_id:', profile?.strava_athlete_id);
       
-      // Call Strava fetch function for activities
-      const activitiesResponse = await supabase.functions.invoke('strava-fetch-clean', {
+      // Call comprehensive Strava fetch function for activities and detailed data
+      const activitiesResponse = await supabase.functions.invoke('strava-fetch-comprehensive', {
         body: {}
       });
 
@@ -507,6 +670,25 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
       }
       return newSet;
     });
+  };
+
+  // Helper functions to get related data for activities
+  const getActivitySplits = (activityId: string) => {
+    return activitySplits.filter(split => split.activity_id === activityId);
+  };
+
+  const getActivityLaps = (activityId: string) => {
+    return activityLaps.filter(lap => lap.activity_id === activityId);
+  };
+
+  const getActivitySegmentEfforts = (activityId: string) => {
+    return segmentEfforts.filter(effort => effort.activity_id === activityId);
+  };
+
+  const getActivityGear = (stravaActivityId: number) => {
+    // This would need to be implemented with a join query in a real scenario
+    // For now, we'll return empty array
+    return [];
   };
 
   // ============================================================================
@@ -854,6 +1036,111 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                                   <span className="text-xs ml-2">Polyline available ({activity.map_summary_polyline.length} chars)</span>
                                 </div>
                               )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Activity Splits */}
+                        {getActivitySplits(activity.id).length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 text-foreground">Per-Kilometer Splits</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                              {getActivitySplits(activity.id).slice(0, 6).map((split) => (
+                                <div key={split.id} className="border rounded p-2">
+                                  <div className="font-medium text-foreground">Split {split.split_number}</div>
+                                  <div className="flex justify-between">
+                                    <span>Distance:</span>
+                                    <span>{formatDistance(split.distance)}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Time:</span>
+                                    <span>{formatEffortTime(split.elapsed_time)}</span>
+                                  </div>
+                                  {split.average_speed && (
+                                    <div className="flex justify-between">
+                                      <span>Pace:</span>
+                                      <span>{formatPace(split.average_speed)}</span>
+                                    </div>
+                                  )}
+                                  {split.elevation_difference && (
+                                    <div className="flex justify-between">
+                                      <span>Elevation:</span>
+                                      <span>{split.elevation_difference > 0 ? '+' : ''}{Math.round(split.elevation_difference)}m</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Activity Laps */}
+                        {getActivityLaps(activity.id).length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 text-foreground">Laps</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                              {getActivityLaps(activity.id).slice(0, 4).map((lap) => (
+                                <div key={lap.id} className="border rounded p-2">
+                                  <div className="font-medium text-foreground">Lap {lap.lap_number}</div>
+                                  <div className="flex justify-between">
+                                    <span>Distance:</span>
+                                    <span>{formatDistance(lap.distance)}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Time:</span>
+                                    <span>{formatEffortTime(lap.elapsed_time)}</span>
+                                  </div>
+                                  {lap.average_speed && (
+                                    <div className="flex justify-between">
+                                      <span>Pace:</span>
+                                      <span>{formatPace(lap.average_speed)}</span>
+                                    </div>
+                                  )}
+                                  {lap.average_heartrate && (
+                                    <div className="flex justify-between">
+                                      <span>Avg HR:</span>
+                                      <span>{Math.round(lap.average_heartrate)} bpm</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Segment Efforts */}
+                        {getActivitySegmentEfforts(activity.id).length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 text-foreground flex items-center gap-1">
+                              <Trophy className="h-3 w-3 text-yellow-500" />
+                              Segment Efforts
+                            </h4>
+                            <div className="space-y-2 text-sm text-muted-foreground">
+                              {getActivitySegmentEfforts(activity.id).slice(0, 5).map((effort) => (
+                                <div key={effort.id} className="border rounded p-2">
+                                  <div className="flex justify-between items-start">
+                                    <div className="font-medium text-foreground">{effort.segment_name}</div>
+                                    <div className="flex gap-1">
+                                      {effort.pr_rank === 1 && (
+                                        <Badge className="bg-yellow-100 text-yellow-800 text-xs">PR</Badge>
+                                      )}
+                                      {effort.kom_rank && effort.kom_rank <= 10 && (
+                                        <Badge className="bg-orange-100 text-orange-800 text-xs">KOM #{effort.kom_rank}</Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 mt-1">
+                                    <div className="flex justify-between">
+                                      <span>Distance:</span>
+                                      <span>{formatDistance(effort.distance)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Time:</span>
+                                      <span>{formatEffortTime(effort.elapsed_time)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         )}

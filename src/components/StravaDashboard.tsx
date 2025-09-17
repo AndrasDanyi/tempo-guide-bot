@@ -264,56 +264,76 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
       console.log('Profile strava_connected:', profile?.strava_connected);
       console.log('Profile strava_athlete_id:', profile?.strava_athlete_id);
       
-      // Call our Supabase Edge Function that fetches data from Strava API
-      const { data, error } = await supabase.functions.invoke('strava-fetch-clean', {
-        body: {}
-      });
+      // Call both Strava fetch functions in parallel
+      const [activitiesResponse, bestEffortsResponse] = await Promise.all([
+        // Fetch activities
+        supabase.functions.invoke('strava-fetch-clean', {
+          body: {}
+        }),
+        // Fetch best efforts
+        supabase.functions.invoke('strava-fetch-best-efforts', {
+          body: {}
+        })
+      ]);
 
-      if (error) {
-        console.error('Error refreshing Strava data:', error);
-        console.error('Full error object:', JSON.stringify(error, null, 2));
+      // Handle activities response
+      if (activitiesResponse.error) {
+        console.error('Error refreshing Strava activities:', activitiesResponse.error);
+        console.error('Full error object:', JSON.stringify(activitiesResponse.error, null, 2));
         
         // Provide user-friendly error messages based on the specific error
-        let errorMessage = 'Failed to refresh Strava data';
-        if (error.message?.includes('not connected to Strava')) {
+        let errorMessage = 'Failed to refresh Strava activities';
+        if (activitiesResponse.error.message?.includes('not connected to Strava')) {
           errorMessage = 'Please connect to Strava first in your profile settings';
-        } else if (error.message?.includes('non-2xx status code')) {
-          errorMessage = `Strava connection issue. Please try reconnecting to Strava. (Error: ${error.message})`;
-        } else if (error.message?.includes('Failed to fetch stats')) {
+        } else if (activitiesResponse.error.message?.includes('non-2xx status code')) {
+          errorMessage = `Strava connection issue. Please try reconnecting to Strava. (Error: ${activitiesResponse.error.message})`;
+        } else if (activitiesResponse.error.message?.includes('Failed to fetch stats')) {
           errorMessage = 'Strava API error. Your token may have expired. Please reconnect to Strava.';
-        } else if (error.message?.includes('Failed to refresh Strava token')) {
+        } else if (activitiesResponse.error.message?.includes('Failed to refresh Strava token')) {
           errorMessage = 'Strava token expired. Please reconnect to Strava.';
-        } else if (error.message) {
-          errorMessage = `Error: ${error.message}`;
+        } else if (activitiesResponse.error.message) {
+          errorMessage = `Error: ${activitiesResponse.error.message}`;
         }
         
         toast.error(errorMessage);
       } else {
-        console.log('Strava data fetch response:', data);
-        const activityCount = data?.activitiesCount || 0;
+        console.log('Strava activities fetch response:', activitiesResponse.data);
+        const activityCount = activitiesResponse.data?.activitiesCount || 0;
         
         if (activityCount > 0) {
-          // Success! Show how many activities were synced
-          toast.success(`Successfully synced ${activityCount} activities from Strava!`);
-          
           // Update the activities state with the fetched data
-          if (data?.activities) {
-            console.log('Setting activities state with:', data.activities);
-            console.log('Activities count:', data.activities.length);
-            setActivities(data.activities);
+          if (activitiesResponse.data?.activities) {
+            console.log('Setting activities state with:', activitiesResponse.data.activities);
+            console.log('Activities count:', activitiesResponse.data.activities.length);
+            setActivities(activitiesResponse.data.activities);
             console.log('Activities state should now be updated');
-          } else {
-            console.log('No activities in response data:', data);
           }
-          
-          // Notify parent component that new Strava data is available
-          if (onStravaDataSynced) {
-            onStravaDataSynced();
-          }
-        } else {
-          // No new activities found - user might not have any running activities
-          toast.warning('No new activities found. Make sure you have running activities on Strava.');
+          toast.success(`Successfully synced ${activityCount} activities from Strava!`);
         }
+      }
+
+      // Handle best efforts response
+      if (bestEffortsResponse.error) {
+        console.error('Error refreshing Strava best efforts:', bestEffortsResponse.error);
+        toast.error(`Failed to refresh best efforts: ${bestEffortsResponse.error.message || 'Unknown error'}`);
+      } else {
+        console.log('Strava best efforts fetch response:', bestEffortsResponse.data);
+        const bestEffortsCount = bestEffortsResponse.data?.bestEffortsCount || 0;
+        
+        if (bestEffortsCount > 0) {
+          // Update the best efforts state with the fetched data
+          if (bestEffortsResponse.data?.bestEfforts) {
+            console.log('Setting best efforts state with:', bestEffortsResponse.data.bestEfforts);
+            console.log('Best efforts count:', bestEffortsResponse.data.bestEfforts.length);
+            setBestEfforts(bestEffortsResponse.data.bestEfforts);
+          }
+          toast.success(`Successfully synced ${bestEffortsCount} best efforts from Strava!`);
+        }
+      }
+
+      // Notify parent component that new Strava data is available
+      if (onStravaDataSynced) {
+        onStravaDataSynced();
       }
     } catch (error) {
       console.error('Error calling Strava refresh function:', error);

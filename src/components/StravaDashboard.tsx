@@ -35,7 +35,9 @@ import {
   Target,      // For goals/targets
   Zap,         // For Strava branding and sync actions
   Loader2,     // For loading states
-  ExternalLink // For connect button
+  ExternalLink, // For connect button
+  ChevronDown, // For expand/collapse
+  ChevronUp    // For expand/collapse
 } from "lucide-react";
 
 // ============================================================================
@@ -122,6 +124,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
   const [loading, setLoading] = useState(true);                   // Loading state for initial data fetch
   const [refreshing, setRefreshing] = useState(false);            // Loading state for manual sync
   const [isConnecting, setIsConnecting] = useState(false);        // Loading state for Strava connection
+  const [expandedActivities, setExpandedActivities] = useState<Set<string>>(new Set()); // Track which activities are expanded
 
   // ============================================================================
   // SIDE EFFECTS (useEffect hooks)
@@ -493,6 +496,19 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
     return `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}`;
   };
 
+  // Toggle expanded state for activity cards
+  const toggleActivityExpanded = (activityId: string) => {
+    setExpandedActivities(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(activityId)) {
+        newSet.delete(activityId);
+      } else {
+        newSet.add(activityId);
+      }
+      return newSet;
+    });
+  };
+
   // ============================================================================
   // CONDITIONAL RENDERING LOGIC
   // ============================================================================
@@ -632,154 +648,248 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                 </Button>
               </div>
             ) : (
-              activities.map((activity) => (
-                <div key={activity.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-medium">{activity.name}</h3>
-                    <Badge variant="secondary">
-                      {formatDate(activity.start_date)}
-                    </Badge>
-                  </div>
-                  
-                  {/* Basic Metrics */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-blue-500" />
-                      <span className="font-medium">Distance:</span>
-                      <span>{formatDistance(activity.distance)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3 text-green-500" />
-                      <span className="font-medium">Duration:</span>
-                      <span>{formatTime(activity.moving_time)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3 text-orange-500" />
-                      <span className="font-medium">Pace:</span>
-                      <span>{formatPace(activity.average_speed)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3 text-purple-500" />
-                      <span className="font-medium">Max Speed:</span>
-                      <span>{formatMaxSpeed(activity.max_speed)}</span>
-                    </div>
-                  </div>
+              activities.map((activity) => {
+                const isExpanded = expandedActivities.has(activity.id);
+                const hasDetailedData = activity.total_elevation_gain || activity.elev_high || activity.elev_low || 
+                                       activity.average_heartrate || activity.max_heartrate || 
+                                       activity.average_watts || activity.max_watts || activity.kilojoules ||
+                                       activity.average_cadence || activity.start_latlng || activity.end_latlng ||
+                                       activity.kudos_count || activity.achievement_count || activity.suffer_score;
 
-                  {/* Elevation Data */}
-                  {(activity.total_elevation_gain || activity.elev_high || activity.elev_low) && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-muted-foreground">
-                      {activity.total_elevation_gain && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">Elevation Gain:</span>
-                          <span>{formatElevation(activity.total_elevation_gain)}</span>
-                        </div>
-                      )}
-                      {activity.elev_high && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">Max Elevation:</span>
-                          <span>{formatElevation(activity.elev_high)}</span>
-                        </div>
-                      )}
-                      {activity.elev_low && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">Min Elevation:</span>
-                          <span>{formatElevation(activity.elev_low)}</span>
-                        </div>
-                      )}
+                return (
+                  <div key={activity.id} className="border rounded-lg p-4 space-y-3">
+                    {/* Header */}
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-medium">{activity.name}</h3>
+                      <Badge variant="secondary">
+                        {formatDate(activity.start_date)}
+                      </Badge>
                     </div>
-                  )}
-                  
-                  {/* Heart Rate Data */}
-                  {(activity.average_heartrate || activity.max_heartrate) && (
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    
+                    {/* Basic Metrics - Always Visible */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                       <div className="flex items-center gap-1">
-                        <Heart className="h-3 w-3 text-red-500" />
-                        <span className="font-medium">Avg HR:</span>
-                        <span>{activity.average_heartrate ? `${Math.round(activity.average_heartrate)} bpm` : 'N/A'}</span>
+                        <MapPin className="h-3 w-3 text-blue-500" />
+                        <span className="font-medium">Distance:</span>
+                        <span>{formatDistance(activity.distance)}</span>
                       </div>
-                      {activity.max_heartrate && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">Max HR:</span>
-                          <span>{Math.round(activity.max_heartrate)} bpm</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Power Data (for cycling) */}
-                  {(activity.average_watts || activity.max_watts || activity.kilojoules) && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-muted-foreground">
-                      {activity.average_watts && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">Avg Power:</span>
-                          <span>{formatPower(activity.average_watts)}</span>
-                        </div>
-                      )}
-                      {activity.max_watts && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">Max Power:</span>
-                          <span>{formatPower(activity.max_watts)}</span>
-                        </div>
-                      )}
-                      {activity.kilojoules && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">Energy:</span>
-                          <span>{Math.round(activity.kilojoules)} kJ</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Cadence Data (for cycling) */}
-                  {activity.average_cadence && (
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <span className="font-medium">Avg Cadence:</span>
-                      <span>{formatCadence(activity.average_cadence)}</span>
-                    </div>
-                  )}
-
-                  {/* Location Data */}
-                  {(activity.start_latlng || activity.end_latlng) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-muted-foreground">
-                      {activity.start_latlng && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">Start:</span>
-                          <span className="font-mono text-xs">{formatCoordinates(activity.start_latlng)}</span>
-                        </div>
-                      )}
-                      {activity.end_latlng && (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium">End:</span>
-                          <span className="font-mono text-xs">{formatCoordinates(activity.end_latlng)}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Additional Metrics */}
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    {activity.kudos_count && activity.kudos_count > 0 && (
                       <div className="flex items-center gap-1">
-                        <span className="font-medium">Kudos:</span>
-                        <span>{activity.kudos_count}</span>
+                        <Clock className="h-3 w-3 text-green-500" />
+                        <span className="font-medium">Duration:</span>
+                        <span>{formatTime(activity.moving_time)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3 text-orange-500" />
+                        <span className="font-medium">Pace:</span>
+                        <span>{formatPace(activity.average_speed)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3 text-purple-500" />
+                        <span className="font-medium">Max Speed:</span>
+                        <span>{formatMaxSpeed(activity.max_speed)}</span>
+                      </div>
+                    </div>
+
+                    {/* More Info Button */}
+                    {hasDetailedData && (
+                      <div className="flex justify-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleActivityExpanded(activity.id)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          {isExpanded ? (
+                            <>
+                              <ChevronUp className="h-4 w-4 mr-1" />
+                              Less Info
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="h-4 w-4 mr-1" />
+                              More Info
+                            </>
+                          )}
+                        </Button>
                       </div>
                     )}
-                    {activity.achievement_count && activity.achievement_count > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Trophy className="h-3 w-3 text-yellow-500" />
-                        <span className="font-medium">Achievements:</span>
-                        <span>{activity.achievement_count}</span>
-                      </div>
-                    )}
-                    {activity.suffer_score && (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">Suffer Score:</span>
-                        <span>{activity.suffer_score}</span>
+
+                    {/* Detailed Metrics - Expandable */}
+                    {isExpanded && hasDetailedData && (
+                      <div className="space-y-4 pt-2 border-t">
+                        {/* Basic Metrics Details */}
+                        <div>
+                          <h4 className="text-sm font-semibold mb-2 text-foreground">Basic Metrics</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                            <div className="flex justify-between">
+                              <span>Moving Time:</span>
+                              <span>{formatTime(activity.moving_time)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Elapsed Time:</span>
+                              <span>{formatTime(activity.elapsed_time)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Average Speed:</span>
+                              <span>{formatMaxSpeed(activity.average_speed)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Max Speed:</span>
+                              <span>{formatMaxSpeed(activity.max_speed)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Elevation Data */}
+                        {(activity.total_elevation_gain || activity.elev_high || activity.elev_low) && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 text-foreground">Elevation</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                              {activity.total_elevation_gain && (
+                                <div className="flex justify-between">
+                                  <span>Total Gain:</span>
+                                  <span>{formatElevation(activity.total_elevation_gain)}</span>
+                                </div>
+                              )}
+                              {activity.elev_high && (
+                                <div className="flex justify-between">
+                                  <span>Max Elevation:</span>
+                                  <span>{formatElevation(activity.elev_high)}</span>
+                                </div>
+                              )}
+                              {activity.elev_low && (
+                                <div className="flex justify-between">
+                                  <span>Min Elevation:</span>
+                                  <span>{formatElevation(activity.elev_low)}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Heart Rate Data */}
+                        {(activity.average_heartrate || activity.max_heartrate) && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 text-foreground flex items-center gap-1">
+                              <Heart className="h-3 w-3 text-red-500" />
+                              Heart Rate
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                              {activity.average_heartrate && (
+                                <div className="flex justify-between">
+                                  <span>Average HR:</span>
+                                  <span>{Math.round(activity.average_heartrate)} bpm</span>
+                                </div>
+                              )}
+                              {activity.max_heartrate && (
+                                <div className="flex justify-between">
+                                  <span>Max HR:</span>
+                                  <span>{Math.round(activity.max_heartrate)} bpm</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Power Data (for cycling) */}
+                        {(activity.average_watts || activity.max_watts || activity.kilojoules) && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 text-foreground">Power (Cycling)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                              {activity.average_watts && (
+                                <div className="flex justify-between">
+                                  <span>Avg Power:</span>
+                                  <span>{formatPower(activity.average_watts)}</span>
+                                </div>
+                              )}
+                              {activity.max_watts && (
+                                <div className="flex justify-between">
+                                  <span>Max Power:</span>
+                                  <span>{formatPower(activity.max_watts)}</span>
+                                </div>
+                              )}
+                              {activity.kilojoules && (
+                                <div className="flex justify-between">
+                                  <span>Energy:</span>
+                                  <span>{Math.round(activity.kilojoules)} kJ</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Cadence Data (for cycling) */}
+                        {activity.average_cadence && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 text-foreground">Cadence (Cycling)</h4>
+                            <div className="text-sm text-muted-foreground">
+                              <div className="flex justify-between">
+                                <span>Average Cadence:</span>
+                                <span>{formatCadence(activity.average_cadence)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Location Data */}
+                        {(activity.start_latlng || activity.end_latlng) && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-2 text-foreground">Location</h4>
+                            <div className="space-y-2 text-sm text-muted-foreground">
+                              {activity.start_latlng && (
+                                <div>
+                                  <span className="font-medium">Start:</span>
+                                  <span className="font-mono text-xs ml-2">{formatCoordinates(activity.start_latlng)}</span>
+                                </div>
+                              )}
+                              {activity.end_latlng && (
+                                <div>
+                                  <span className="font-medium">End:</span>
+                                  <span className="font-mono text-xs ml-2">{formatCoordinates(activity.end_latlng)}</span>
+                                </div>
+                              )}
+                              {activity.map_summary_polyline && (
+                                <div>
+                                  <span className="font-medium">Route:</span>
+                                  <span className="text-xs ml-2">Polyline available ({activity.map_summary_polyline.length} chars)</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Additional Metrics */}
+                        <div>
+                          <h4 className="text-sm font-semibold mb-2 text-foreground">Additional</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                            {activity.kudos_count && activity.kudos_count > 0 && (
+                              <div className="flex justify-between">
+                                <span>Kudos:</span>
+                                <span>{activity.kudos_count}</span>
+                              </div>
+                            )}
+                            {activity.achievement_count && activity.achievement_count > 0 && (
+                              <div className="flex justify-between items-center">
+                                <span className="flex items-center gap-1">
+                                  <Trophy className="h-3 w-3 text-yellow-500" />
+                                  Achievements:
+                                </span>
+                                <span>{activity.achievement_count}</span>
+                              </div>
+                            )}
+                            {activity.suffer_score && (
+                              <div className="flex justify-between">
+                                <span>Suffer Score:</span>
+                                <span>{activity.suffer_score}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </TabsContent>
           

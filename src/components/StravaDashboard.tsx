@@ -875,7 +875,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
         <Tabs defaultValue="activities" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="activities">Recent Runs</TabsTrigger>
-            <TabsTrigger value="efforts">Estimated Best Efforts</TabsTrigger>
+            <TabsTrigger value="athlete-stats">Athlete Stats</TabsTrigger>
           </TabsList>
           
           <TabsContent value="activities" className="space-y-3">
@@ -1272,144 +1272,319 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
             )}
           </TabsContent>
           
-          <TabsContent value="efforts" className="space-y-3">
-            {segmentEfforts.length === 0 ? (
+          <TabsContent value="athlete-stats" className="space-y-4">
+            {athleteStats.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-2">
-                  No segment PRs found
+                  No athlete stats found
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Segment personal records will appear here after you complete runs with Strava segments
+                  Athlete statistics will appear here after syncing your Strava data
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {/* Segment PRs (Personal Records) */}
-                {segmentEfforts.filter(effort => effort.pr_rank === 1).length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Trophy className="h-5 w-5 text-yellow-500" />
-                      Personal Records (PRs)
-                    </h3>
-                    <div className="space-y-3">
-                      {segmentEfforts
-                        .filter(effort => effort.pr_rank === 1)
-                        .sort((a, b) => a.distance - b.distance) // Sort by distance
-                        .map((effort) => (
-                          <div key={effort.id} className="border border-gray-200 rounded-lg p-4 bg-white">
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex items-center gap-2">
-                                <Trophy className="h-4 w-4 text-yellow-500" />
-                                <h4 className="font-semibold text-foreground">{effort.segment_name}</h4>
-                                <Badge className="bg-yellow-100 text-yellow-800">PR</Badge>
-                              </div>
-                              <Badge variant="outline" className="text-lg font-semibold">
-                                {formatEffortTime(effort.elapsed_time)}
-                              </Badge>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="space-y-6">
+                {athleteStats.map((stats) => (
+                  <div key={stats.id} className="space-y-4">
+                    {/* All-Time Stats */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Trophy className="h-5 w-5 text-gold-500" />
+                        All-Time Statistics
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {/* Running Stats */}
+                        {stats.all_run_totals && (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-blue-500" />
+                              Running
+                            </h4>
+                            <div className="space-y-2 text-sm">
                               <div className="flex justify-between items-center">
-                                <span className="font-medium text-foreground">Distance</span>
-                                <span className="text-muted-foreground">{formatDistance(effort.distance)}</span>
+                                <span className="font-medium text-foreground">Total Distance</span>
+                                <span className="text-muted-foreground">{formatDistance(stats.all_run_totals.distance)}</span>
                               </div>
                               <div className="flex justify-between items-center">
-                                <span className="font-medium text-foreground">Date</span>
-                                <span className="text-muted-foreground">{new Date(effort.start_date).toLocaleDateString()}</span>
+                                <span className="font-medium text-foreground">Total Time</span>
+                                <span className="text-muted-foreground">{formatEffortTime(stats.all_run_totals.moving_time)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Activities</span>
+                                <span className="text-muted-foreground">{stats.all_run_totals.count}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Elevation Gain</span>
+                                <span className="text-muted-foreground">{formatElevation(stats.all_run_totals.elevation_gain)}</span>
                               </div>
                             </div>
                           </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
+                        )}
 
-                {/* KOM Rankings */}
-                {segmentEfforts.filter(effort => effort.kom_rank && effort.kom_rank <= 10).length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Trophy className="h-5 w-5 text-orange-500" />
-                      King of the Mountain (KOM) Rankings
-                    </h3>
-                    <div className="space-y-3">
-                      {segmentEfforts
-                        .filter(effort => effort.kom_rank && effort.kom_rank <= 10)
-                        .sort((a, b) => (a.kom_rank || 0) - (b.kom_rank || 0)) // Sort by KOM rank
-                        .map((effort) => (
-                          <div key={effort.id} className="border border-gray-200 rounded-lg p-4 bg-white">
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex items-center gap-2">
-                                <Trophy className="h-4 w-4 text-orange-500" />
-                                <h4 className="font-semibold text-foreground">{effort.segment_name}</h4>
-                                <Badge className="bg-orange-100 text-orange-800">KOM #{effort.kom_rank}</Badge>
-                              </div>
-                              <Badge variant="outline" className="text-lg font-semibold">
-                                {formatEffortTime(effort.elapsed_time)}
-                              </Badge>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4 text-sm">
+                        {/* Cycling Stats */}
+                        {stats.all_ride_totals && (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-green-500" />
+                              Cycling
+                            </h4>
+                            <div className="space-y-2 text-sm">
                               <div className="flex justify-between items-center">
-                                <span className="font-medium text-foreground">Distance</span>
-                                <span className="text-muted-foreground">{formatDistance(effort.distance)}</span>
+                                <span className="font-medium text-foreground">Total Distance</span>
+                                <span className="text-muted-foreground">{formatDistance(stats.all_ride_totals.distance)}</span>
                               </div>
                               <div className="flex justify-between items-center">
-                                <span className="font-medium text-foreground">Date</span>
-                                <span className="text-muted-foreground">{new Date(effort.start_date).toLocaleDateString()}</span>
+                                <span className="font-medium text-foreground">Total Time</span>
+                                <span className="text-muted-foreground">{formatEffortTime(stats.all_ride_totals.moving_time)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Activities</span>
+                                <span className="text-muted-foreground">{stats.all_ride_totals.count}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Elevation Gain</span>
+                                <span className="text-muted-foreground">{formatElevation(stats.all_ride_totals.elevation_gain)}</span>
                               </div>
                             </div>
                           </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
+                        )}
 
-                {/* Recent Segment Efforts */}
-                {segmentEfforts.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Activity className="h-5 w-5 text-blue-500" />
-                      Recent Segment Efforts
-                    </h3>
-                    <div className="space-y-3">
-                      {segmentEfforts
-                        .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()) // Sort by date, newest first
-                        .slice(0, 10) // Show only 10 most recent
-                        .map((effort) => (
-                          <div key={effort.id} className="border border-gray-200 rounded-lg p-4 bg-white">
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex items-center gap-2">
-                                <Activity className="h-4 w-4 text-blue-500" />
-                                <h4 className="font-semibold text-foreground">{effort.segment_name}</h4>
-                                <div className="flex gap-1">
-                                  {effort.pr_rank === 1 && (
-                                    <Badge className="bg-yellow-100 text-yellow-800 text-xs">PR</Badge>
-                                  )}
-                                  {effort.kom_rank && effort.kom_rank <= 10 && (
-                                    <Badge className="bg-orange-100 text-orange-800 text-xs">KOM #{effort.kom_rank}</Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <Badge variant="outline">
-                                {formatEffortTime(effort.elapsed_time)}
-                              </Badge>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4 text-sm">
+                        {/* Swimming Stats */}
+                        {stats.all_swim_totals && (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-cyan-500" />
+                              Swimming
+                            </h4>
+                            <div className="space-y-2 text-sm">
                               <div className="flex justify-between items-center">
-                                <span className="font-medium text-foreground">Distance</span>
-                                <span className="text-muted-foreground">{formatDistance(effort.distance)}</span>
+                                <span className="font-medium text-foreground">Total Distance</span>
+                                <span className="text-muted-foreground">{formatDistance(stats.all_swim_totals.distance)}</span>
                               </div>
                               <div className="flex justify-between items-center">
-                                <span className="font-medium text-foreground">Date</span>
-                                <span className="text-muted-foreground">{new Date(effort.start_date).toLocaleDateString()}</span>
+                                <span className="font-medium text-foreground">Total Time</span>
+                                <span className="text-muted-foreground">{formatEffortTime(stats.all_swim_totals.moving_time)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Activities</span>
+                                <span className="text-muted-foreground">{stats.all_swim_totals.count}</span>
                               </div>
                             </div>
                           </div>
-                        ))}
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Year-to-Date Stats */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-green-500" />
+                        Year-to-Date Statistics
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {/* YTD Running */}
+                        {stats.ytd_run_totals && (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-blue-500" />
+                              Running (YTD)
+                            </h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Distance</span>
+                                <span className="text-muted-foreground">{formatDistance(stats.ytd_run_totals.distance)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Time</span>
+                                <span className="text-muted-foreground">{formatEffortTime(stats.ytd_run_totals.moving_time)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Activities</span>
+                                <span className="text-muted-foreground">{stats.ytd_run_totals.count}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* YTD Cycling */}
+                        {stats.ytd_ride_totals && (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-green-500" />
+                              Cycling (YTD)
+                            </h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Distance</span>
+                                <span className="text-muted-foreground">{formatDistance(stats.ytd_ride_totals.distance)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Time</span>
+                                <span className="text-muted-foreground">{formatEffortTime(stats.ytd_ride_totals.moving_time)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Activities</span>
+                                <span className="text-muted-foreground">{stats.ytd_ride_totals.count}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* YTD Swimming */}
+                        {stats.ytd_swim_totals && (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-cyan-500" />
+                              Swimming (YTD)
+                            </h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Distance</span>
+                                <span className="text-muted-foreground">{formatDistance(stats.ytd_swim_totals.distance)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Time</span>
+                                <span className="text-muted-foreground">{formatEffortTime(stats.ytd_swim_totals.moving_time)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Activities</span>
+                                <span className="text-muted-foreground">{stats.ytd_swim_totals.count}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Recent Stats (Last 4 weeks) */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-orange-500" />
+                        Recent Statistics (Last 4 Weeks)
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {/* Recent Running */}
+                        {stats.recent_run_totals && (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-blue-500" />
+                              Running (Recent)
+                            </h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Distance</span>
+                                <span className="text-muted-foreground">{formatDistance(stats.recent_run_totals.distance)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Time</span>
+                                <span className="text-muted-foreground">{formatEffortTime(stats.recent_run_totals.moving_time)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Activities</span>
+                                <span className="text-muted-foreground">{stats.recent_run_totals.count}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Recent Cycling */}
+                        {stats.recent_ride_totals && (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-green-500" />
+                              Cycling (Recent)
+                            </h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Distance</span>
+                                <span className="text-muted-foreground">{formatDistance(stats.recent_ride_totals.distance)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Time</span>
+                                <span className="text-muted-foreground">{formatEffortTime(stats.recent_ride_totals.moving_time)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Activities</span>
+                                <span className="text-muted-foreground">{stats.recent_ride_totals.count}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Recent Swimming */}
+                        {stats.recent_swim_totals && (
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-cyan-500" />
+                              Swimming (Recent)
+                            </h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Distance</span>
+                                <span className="text-muted-foreground">{formatDistance(stats.recent_swim_totals.distance)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Time</span>
+                                <span className="text-muted-foreground">{formatEffortTime(stats.recent_swim_totals.moving_time)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-foreground">Activities</span>
+                                <span className="text-muted-foreground">{stats.recent_swim_totals.count}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Achievement Stats */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Trophy className="h-5 w-5 text-yellow-500" />
+                        Achievement Statistics
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                            <Trophy className="h-4 w-4 text-yellow-500" />
+                            Personal Records
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium text-foreground">Total PRs</span>
+                              <span className="text-muted-foreground">{stats.all_run_totals?.count || 0}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium text-foreground">This Year</span>
+                              <span className="text-muted-foreground">{stats.ytd_run_totals?.count || 0}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium text-foreground">Recent (4 weeks)</span>
+                              <span className="text-muted-foreground">{stats.recent_run_totals?.count || 0}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                            <Activity className="h-4 w-4 text-blue-500" />
+                            Notable Achievements
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium text-foreground">Biggest Ride</span>
+                              <span className="text-muted-foreground">{formatDistance(stats.biggest_ride_distance)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium text-foreground">Biggest Climb</span>
+                              <span className="text-muted-foreground">{formatElevation(stats.biggest_climb_elevation_gain)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                )}
+                ))}
               </div>
             )}
           </TabsContent>

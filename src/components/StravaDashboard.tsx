@@ -264,17 +264,21 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
       console.log('Profile strava_connected:', profile?.strava_connected);
       console.log('Profile strava_athlete_id:', profile?.strava_athlete_id);
       
-      // Call both Strava fetch functions in parallel
-      const [activitiesResponse, bestEffortsResponse] = await Promise.all([
-        // Fetch activities
-        supabase.functions.invoke('strava-fetch-clean', {
+      // Call Strava fetch function for activities
+      const activitiesResponse = await supabase.functions.invoke('strava-fetch-clean', {
+        body: {}
+      });
+
+      // Try to fetch best efforts (optional - don't fail if function doesn't exist)
+      let bestEffortsResponse = { data: null, error: null };
+      try {
+        bestEffortsResponse = await supabase.functions.invoke('strava-fetch-best-efforts', {
           body: {}
-        }),
-        // Fetch best efforts
-        supabase.functions.invoke('strava-fetch-best-efforts', {
-          body: {}
-        })
-      ]);
+        });
+      } catch (error) {
+        console.log('Best efforts function not available yet:', error);
+        // Continue without best efforts - don't break the main functionality
+      }
 
       // Handle activities response
       if (activitiesResponse.error) {

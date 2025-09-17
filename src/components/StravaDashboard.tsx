@@ -212,18 +212,90 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
   // SIDE EFFECTS (useEffect hooks)
   // ============================================================================
   
-  // Automatically fetch Strava data when the user connects to Strava
+  // Check if we need to auto-sync (once per day)
+  const shouldAutoSync = () => {
+    const lastSync = localStorage.getItem('strava_last_sync');
+    if (!lastSync) return true;
+    
+    const lastSyncDate = new Date(lastSync);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - lastSyncDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays >= 1; // Auto-sync once per day
+  };
+
+  // Automatically fetch Strava data when the user connects to Strava (only once per day)
   useEffect(() => {
     if (profile?.strava_connected) {
-      fetchStravaData();
+      if (shouldAutoSync()) {
+        console.log('Auto-syncing Strava data (once per day)');
+        fetchStravaData();
+      } else {
+        console.log('Loading existing Strava data from database (auto-sync not needed)');
+        fetchStravaDataFromDB();
+      }
     }
   }, [profile?.strava_connected]);
 
   // ============================================================================
-  // DATA FETCHING FUNCTION
+  // DATA FETCHING FUNCTIONS
   // ============================================================================
-  // This function fetches all Strava data from our database and displays it
   
+  // This function loads existing Strava data from our database (no API calls)
+  const fetchStravaDataFromDB = async () => {
+    setLoading(true);
+    
+    try {
+      console.log('Loading existing Strava data from database...');
+      
+      // Fetch all data from database in parallel
+      const [activitiesResult, splitsResult, lapsResult, segmentEffortsResult, gearResult, athleteStatsResult] = await Promise.all([
+        supabase.from('strava_activities').select('*').order('start_date', { ascending: false }),
+        supabase.from('strava_activity_splits').select('*'),
+        supabase.from('strava_activity_laps').select('*'),
+        supabase.from('strava_segment_efforts').select('*'),
+        supabase.from('strava_gear').select('*'),
+        supabase.from('strava_athlete_stats').select('*')
+      ]);
+
+      if (activitiesResult.error) throw activitiesResult.error;
+      if (splitsResult.error) throw splitsResult.error;
+      if (lapsResult.error) throw lapsResult.error;
+      if (segmentEffortsResult.error) throw segmentEffortsResult.error;
+      if (gearResult.error) throw gearResult.error;
+      if (athleteStatsResult.error) throw athleteStatsResult.error;
+
+      // Update state with existing data
+      setActivities(activitiesResult.data || []);
+      setActivitySplits(splitsResult.data || []);
+      setActivityLaps(lapsResult.data || []);
+      setSegmentEfforts(segmentEffortsResult.data || []);
+      setGear(gearResult.data || []);
+      setAthleteStats(athleteStatsResult.data || []);
+
+      console.log('Loaded existing data:', {
+        activities: activitiesResult.data?.length || 0,
+        splits: splitsResult.data?.length || 0,
+        laps: lapsResult.data?.length || 0,
+        segmentEfforts: segmentEffortsResult.data?.length || 0,
+        gear: gearResult.data?.length || 0,
+        athleteStats: athleteStatsResult.data?.length || 0
+      });
+
+    } catch (error) {
+      console.error('Error loading existing Strava data:', error);
+      toast({
+        title: "Error loading data",
+        description: "Failed to load existing Strava data from database.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // This function fetches fresh Strava data from API and stores it in database
   const fetchStravaData = async () => {
     setLoading(true);
     
@@ -505,6 +577,10 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
             console.log('Activities state should now be updated');
           }
           toast.success(`Successfully synced ${activityCount} activities from Strava!`);
+          
+          // Set last sync timestamp to prevent auto-sync for 24 hours
+          localStorage.setItem('strava_last_sync', new Date().toISOString());
+          console.log('Set last sync timestamp to prevent auto-sync for 24 hours');
         } else {
           console.log('No activities returned from Strava API');
           toast.warning('No activities found on Strava. Make sure you have running activities.');
@@ -552,6 +628,10 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
       if (onStravaDataSynced) {
         onStravaDataSynced();
       }
+      
+      // Set last sync timestamp to prevent auto-sync for 24 hours
+      localStorage.setItem('strava_last_sync', new Date().toISOString());
+      console.log('Set last sync timestamp after manual refresh');
     } catch (error) {
       console.error('Error calling Strava refresh function:', error);
       toast.error('Failed to refresh Strava data. Please try again.');

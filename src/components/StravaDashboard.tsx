@@ -298,7 +298,12 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
           
           // Update the activities state with the fetched data
           if (data?.activities) {
+            console.log('Setting activities state with:', data.activities);
+            console.log('Activities count:', data.activities.length);
             setActivities(data.activities);
+            console.log('Activities state should now be updated');
+          } else {
+            console.log('No activities in response data:', data);
           }
           
           // Notify parent component that new Strava data is available
@@ -555,6 +560,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
           </TabsContent>
           
           <TabsContent value="activities" className="space-y-3">
+            {console.log('Current activities state:', activities, 'Length:', activities.length)}
             {activities.length === 0 ? (
               <div className="text-center py-8">
                 <div className="mb-4">

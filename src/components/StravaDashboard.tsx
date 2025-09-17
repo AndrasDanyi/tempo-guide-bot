@@ -283,6 +283,10 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
         athleteStats: athleteStatsResult.data?.length || 0
       });
 
+      // Debug athlete stats specifically
+      console.log('Athlete stats data:', athleteStatsResult.data);
+      console.log('Athlete stats error:', athleteStatsResult.error);
+
     } catch (error) {
       console.error('Error loading existing Strava data:', error);
       toast({
@@ -442,6 +446,7 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
       if (athleteStatsResponse.error) {
         console.error('Error fetching athlete stats:', athleteStatsResponse.error);
       } else {
+        console.log('Athlete stats fetched from database:', athleteStatsResponse.data);
         setAthleteStats(athleteStatsResponse.data || []);
       }
 
@@ -1273,6 +1278,15 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
           </TabsContent>
           
           <TabsContent value="athlete-stats" className="space-y-4">
+            {/* Debug info */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <h4 className="font-semibold text-yellow-800 mb-2">Debug Info</h4>
+              <div className="text-sm text-yellow-700">
+                <p>Athlete stats length: {athleteStats.length}</p>
+                <p>Athlete stats data: {JSON.stringify(athleteStats, null, 2)}</p>
+              </div>
+            </div>
+
             {athleteStats.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-2">
@@ -1281,6 +1295,25 @@ const StravaDashboard: React.FC<StravaDashboardProps> = ({ profile, onStravaData
                 <p className="text-sm text-muted-foreground">
                   Athlete statistics will appear here after syncing your Strava data
                 </p>
+                <div className="mt-4">
+                  <Button 
+                    onClick={handleManualRefresh}
+                    disabled={refreshing}
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    {refreshing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-4 w-4 mr-2" />
+                        Sync Data to Get Athlete Stats
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="space-y-6">

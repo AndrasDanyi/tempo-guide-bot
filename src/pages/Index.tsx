@@ -9,7 +9,7 @@
 
 // React hooks for managing component state and side effects
 import { useState, useEffect } from 'react';
-// React Router for navigation
+maktra// React Router for navigation
 import { Navigate } from 'react-router-dom';
 
 // UI Components from our design system (shadcn/ui)
